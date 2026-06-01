@@ -19,6 +19,13 @@ When installed as the plugin, the three roles are addressed by their plugin-scop
 
 Every dispatch prompt MUST give the subagent both its TASK_ID (where applicable) and the RUN_DIR path, so it reads and writes the correct run's files.
 
+## Model selection
+Pick the least powerful model that fits each role, and pass it as the Agent tool's `model` parameter at dispatch (this overrides the agent's `model: inherit` default and is shown in the run UI). Stay within what the user's plan offers — if a tier isn't available, omit the override and let it inherit the session model:
+- **worker** — implementation/TDD: a capable coding model (e.g. `sonnet`).
+- **auditor** — the quality lever: the **most capable model available to you** (e.g. `opus`; fall back to `sonnet`, else inherit). Strict, skeptical verification benefits most from the strongest model.
+- **integration** — mechanical run-and-check across flows: a fast model (e.g. `sonnet`, or `haiku` for simple suites).
+Never fail a run because a preferred model is unavailable — degrade to inherit.
+
 ## Preconditions
 Load `RUN_DIR/plans.json`. If it does not exist or `locked` is not true, tell the user to run /harness-plan and stop.
 
