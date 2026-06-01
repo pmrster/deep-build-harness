@@ -1,10 +1,19 @@
-import json, subprocess, sys
+import json, os, subprocess, sys
 import pytest
-from orchestrator.resolver import resolve, CycleError, UnknownDependencyError
+from orchestrator.resolver import (
+    resolve, CycleError, UnknownDependencyError, DuplicateTaskIdError,
+)
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def plans(tasks):
     return {"locked": True, "approved_at": None, "tasks": tasks}
+
+
+def test_empty_plan_returns_empty():
+    assert resolve(plans([])) == []
+    assert resolve({}) == []
 
 
 def test_linear_chain_orders_dependencies_first():
@@ -56,9 +65,19 @@ def test_unknown_dependency_raises():
         resolve(p)
 
 
-import os
+def test_self_dependency_is_a_cycle():
+    p = plans([{"id": "a", "depends_on": ["a"]}])
+    with pytest.raises(CycleError):
+        resolve(p)
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def test_duplicate_ids_raise():
+    p = plans([
+        {"id": "a", "depends_on": []},
+        {"id": "a", "depends_on": []},
+    ])
+    with pytest.raises(DuplicateTaskIdError):
+        resolve(p)
 
 
 def _run_cli(tmp_path, data):

@@ -16,6 +16,10 @@ class UnknownDependencyError(Exception):
     """Raised when a depends_on references an unknown task id."""
 
 
+class DuplicateTaskIdError(ValueError):
+    """Raised when two tasks share the same id."""
+
+
 def resolve(plans: dict) -> list:
     """Return task ids in dependency order.
 
@@ -25,6 +29,9 @@ def resolve(plans: dict) -> list:
     tasks = plans.get("tasks", [])
     ids = [t["id"] for t in tasks]
     id_set = set(ids)
+    if len(ids) != len(id_set):
+        dupes = sorted({i for i in ids if ids.count(i) > 1})
+        raise DuplicateTaskIdError(f"duplicate task ids: {dupes}")
     deps = {t["id"]: list(t.get("depends_on", []) or []) for t in tasks}
 
     for tid, dlist in deps.items():
@@ -55,7 +62,8 @@ def main(argv: list) -> int:
         print("usage: resolver.py <plans.json>", file=sys.stderr)
         return 4
     try:
-        plans = json.loads(open(argv[1]).read())
+        with open(argv[1]) as fh:
+            plans = json.load(fh)
     except (OSError, json.JSONDecodeError) as e:
         print(f"cannot read plans: {e}", file=sys.stderr)
         return 4
@@ -68,6 +76,9 @@ def main(argv: list) -> int:
     except UnknownDependencyError as e:
         print(str(e), file=sys.stderr)
         return 3
+    except DuplicateTaskIdError as e:
+        print(str(e), file=sys.stderr)
+        return 4
     return 0
 
 
