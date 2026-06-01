@@ -87,6 +87,8 @@ Read-only roles are enforced twice: the agent's `tools` / `disallowedTools` fron
 
 Start in any folder — greenfield is fine. Use a git repo so workers can commit and the release phase can tag.
 
+Works the same whether you are building something new or changing a big/existing/legacy repo, and you do not need to be a coder. The interview quietly inspects the project to detect the stack and test commands, asks you only plain-language questions (what you want, who it's for, what must not break), and proposes where the change should live — you just confirm. On a large repo the scan maps only that change area plus the code directly connected to it, so it scales with the size of your change, not the size of the repo.
+
 ```bash
 mkdir my-app && cd my-app && git init
 claude                       # the plugin loads automatically (see Install)

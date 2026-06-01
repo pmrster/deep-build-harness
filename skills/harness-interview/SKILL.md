@@ -20,9 +20,21 @@ Each harness run is isolated under its own directory so multiple features/sessio
 
 All files this skill and later phases write live inside `RUN_DIR`, not flat under `state/`.
 
+## Recon (read-only — do this before deriving technical answers)
+
+The user may be non-technical and may not know the stack, file paths, or test commands. Find these yourself instead of asking, using read-only tools only (Glob, Grep, and read-only Bash like `ls`, `find`, reading manifests). Stay bounded — list the top 2–3 directory levels and read manifests; do not deep-read every file.
+
+Detect and remember:
+- **repo_type**: greenfield (no source files) · existing · large/legacy (roughly > 2,000 source files or a very large tree — note it so the scan scopes hard).
+- **stack**: from manifests (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `requirements.txt`, …).
+- **commands**: build / test / lint, from manifest scripts or common config (e.g. `pytest`, `npm test`, `ruff`, `eslint`).
+- **structure**: top-level modules and entry points.
+
+You will use this recon to pre-fill the technical answers below and to propose the change scope.
+
 ## Behavior
 
-Work through the Must-Know Checklist. For each item, you need a specific, non-vague answer. Push back on vague answers with a sharper follow-up (see Calibration). Ask in small batches, not all at once — prefer `AskUserQuestion` for choices, plain questions for open ones.
+Work through the Must-Know Checklist. **Ask the user only the PRODUCT and SCOPE items, in plain language** (no paths, no stack names, no percentages). For the TECHNICAL and QUALITY items, **derive a value from Recon and present it for confirmation** with a one-line plain-language explanation — never make the user supply it from scratch. Ask in small batches; prefer `AskUserQuestion` for choices. A technical item confirmed from a pre-filled default counts as answered.
 
 ## Must-Know Checklist
 
@@ -34,20 +46,25 @@ PRODUCT
 - [ ] What does "done" mean in the user's exact words?
 - [ ] Greenfield, or extending existing code?
 
-TECHNICAL
-- [ ] Existing tech stack? (language, framework, database, infra)
-- [ ] Existing APIs, schemas, or interfaces to match?
-- [ ] What must NOT change or break?
+TECHNICAL (derive from Recon, then confirm in plain language)
+- [ ] Tech stack — detected from manifests; confirm. ("This looks like a Python project — right?")
+- [ ] Existing APIs / schemas / interfaces to match — detected from the scoped area; confirm.
+- [ ] What must NOT change or break — ask in plain words ("Anything that's working today you're worried about breaking?") and map it to must_not_touch zones yourself.
 
-QUALITY
-- [ ] Minimum acceptable test coverage %?
-- [ ] Lint / type-check requirements?
-- [ ] Performance requirements? (response time, load)
-- [ ] Security requirements? (auth, data privacy)
+QUALITY (derive a sensible default, then confirm in plain language)
+- [ ] Test coverage target — propose a default (e.g. match the repo's current level, or 80% for greenfield) and confirm. Explain it plainly: "how much of the code is checked by automatic tests."
+- [ ] Lint / type-check — detected from config (e.g. ruff/eslint/mypy/tsc); confirm whether to enforce.
+- [ ] Performance / security — ask only if the user's intent implies them; otherwise default to "none" and say so.
 
 SCOPE
 - [ ] What is explicitly OUT of scope for this run?
 - [ ] What has already been tried and failed?
+
+### Translate intent → change scope (existing/large repos)
+From Recon plus the user's own words, propose where the change lives so the scan stays bounded:
+- grep the repo for the user's keywords (e.g. "password reset" → `password`, `reset`, `auth`) to find the likely area.
+- Propose **seed_paths** (the directory/module the change centers on) and **must_not_touch** zones, and confirm in plain language: "Sounds like this lives around `src/auth/` and shouldn't touch billing — correct?"
+- For greenfield, leave seed_paths empty.
 
 ## Confidence Scoring (internal — never show the user)
 
@@ -69,6 +86,9 @@ You: "Which conventions exactly — REST level 2 (resource URLs + verbs)? JSON:A
 User: "It should be fast"
 You: "Fast under what load? how many concurrent users? acceptable p95?"
 
+Non-coder, technical item (derive + confirm, don't interrogate):
+You: "I checked the project — it's Python and uses `pytest` to test itself (an automatic check that the code works). I'll keep using that and aim for the same level of testing the project already has. Sound good, or do you want stricter checks?"
+
 ## Output — write RUN_DIR/context.md
 
 ```
@@ -79,6 +99,14 @@ You: "Fast under what load? how many concurrent users? acceptable p95?"
 ## Definition of Done (user's exact words)
 ## Constraints (must not change)
 ## Out of Scope
+## Scope
+  - repo_type: greenfield | existing | large/legacy
+  - seed_paths: [change area, e.g. src/auth/]   # empty for greenfield
+  - must_not_touch: [zones to avoid]
+  - build_command: <command or none>
+  - test_command: <command or none>
+  - lint_command: <command or none>
+  - expansion_cap: 40                            # max files for the scan's 1-hop
 ## Quality Bar
   - test_coverage: X%
   - lint: strict | standard | none
