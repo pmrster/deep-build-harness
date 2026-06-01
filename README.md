@@ -4,6 +4,8 @@ A Claude Code plugin that runs your work through a disciplined, multi-agent **ex
 
 It uses only native Claude Code primitives — **subagents, skills, hooks, and file-based state** — so it works on any plan. No external orchestrator, no `claude -p` subprocesses.
 
+For the core concept, the five principles, and how this differs from lighter harnesses, see **[PRINCIPLES.md](PRINCIPLES.md)**.
+
 ## Why
 
 | Plain subagents | This harness |
