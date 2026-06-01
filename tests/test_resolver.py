@@ -54,3 +54,39 @@ def test_unknown_dependency_raises():
     ])
     with pytest.raises(UnknownDependencyError):
         resolve(p)
+
+
+import os
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _run_cli(tmp_path, data):
+    f = tmp_path / "plans.json"
+    f.write_text(json.dumps(data))
+    return subprocess.run(
+        [sys.executable, "orchestrator/resolver.py", str(f)],
+        cwd=REPO, capture_output=True, text=True,
+    )
+
+
+def test_cli_prints_order_exit_zero(tmp_path):
+    r = _run_cli(tmp_path, plans([
+        {"id": "b", "depends_on": ["a"]},
+        {"id": "a", "depends_on": []},
+    ]))
+    assert r.returncode == 0
+    assert r.stdout.split() == ["a", "b"]
+
+
+def test_cli_cycle_exit_two(tmp_path):
+    r = _run_cli(tmp_path, plans([
+        {"id": "a", "depends_on": ["b"]},
+        {"id": "b", "depends_on": ["a"]},
+    ]))
+    assert r.returncode == 2
+
+
+def test_cli_unknown_dep_exit_three(tmp_path):
+    r = _run_cli(tmp_path, plans([{"id": "a", "depends_on": ["ghost"]}]))
+    assert r.returncode == 3

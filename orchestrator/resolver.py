@@ -48,3 +48,28 @@ def resolve(plans: dict) -> list:
         satisfied.add(nxt)
         remaining.discard(nxt)
     return resolved
+
+
+def main(argv: list) -> int:
+    if len(argv) != 2:
+        print("usage: resolver.py <plans.json>", file=sys.stderr)
+        return 4
+    try:
+        plans = json.loads(open(argv[1]).read())
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"cannot read plans: {e}", file=sys.stderr)
+        return 4
+    try:
+        for tid in resolve(plans):
+            print(tid)
+    except CycleError as e:
+        print(str(e), file=sys.stderr)
+        return 2
+    except UnknownDependencyError as e:
+        print(str(e), file=sys.stderr)
+        return 3
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))
