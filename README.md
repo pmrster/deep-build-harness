@@ -71,11 +71,13 @@ The coordinator is the **sole writer of `plans.json`**. Workers and the auditor 
 
 ### Roles and permissions
 
-| Agent | Can write | Purpose |
-|---|---|---|
-| worker | source, `work_log.json`, commits | implement one task with TDD |
-| auditor | `audit_log.json` only | independently verify; **no Write/Edit** |
-| integration | `integration_log.json` only | end-to-end flows; **no Write/Edit** |
+| Agent | Color | Can write | Purpose |
+|---|---|---|---|
+| worker | blue | source, `work_log.json`, commits | implement one task with TDD |
+| auditor | purple | `audit_log.json` only | independently verify; **no Write/Edit** |
+| integration | cyan | `integration_log.json` only | end-to-end flows; **no Write/Edit** |
+
+Each role has a distinct UI color (above) and `model: inherit` by default, so it works on any plan. The coordinator picks a model per dispatch — least-powerful-that-fits, with the **auditor getting the most capable model available** (it's the quality lever) — and never fails a run if a preferred tier isn't on your plan.
 
 Read-only roles are enforced twice: the agent's `tools` / `disallowedTools` frontmatter omits Write/Edit (authoritative), and a `PreToolUse` hook blocks them as a backstop (signalled by `state/.active_role`). A `PostToolUse` hook logs every Write/Edit to the run's `file_change_log.jsonl`. See `hooks/README.md`.
 
