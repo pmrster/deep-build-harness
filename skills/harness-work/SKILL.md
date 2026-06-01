@@ -1,6 +1,6 @@
 ---
 name: harness-work
-description: Phase 4 coordinator of the deep-interview harness. Use after state/plans.json is locked to drive implementation: resolve task order, dispatch a worker then an auditor per task sequentially, run a rework loop, then integration. Sole writer of plans.json. Triggers on /harness-work.
+description: "Phase 4 coordinator of the deep-interview harness. Use after state/plans.json is locked to drive implementation — resolve task order, dispatch a worker then an auditor per task sequentially, run a rework loop, then integration. Sole writer of plans.json. Triggers on /harness-work."
 ---
 
 # Phase 4 — Coordinator
