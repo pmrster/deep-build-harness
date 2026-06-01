@@ -15,23 +15,26 @@ Resolve RUN: use the run id established earlier in this session; if none, read `
 ### Step 1 — Check if greenfield
 Read `RUN_DIR/context.md`. If explicitly greenfield with no existing code, write `RUN_DIR/codebase_map.md` containing `# Codebase Map\nGreenfield — no existing code.` and stop.
 
-### Step 2 — Discover structure
-- List files (ignore `node_modules`, `.git`, `__pycache__`, build artifacts).
-- Read the manifest that exists: `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml`.
-- Read the existing README if present.
+### Step 2 — Read the scope
+From `RUN_DIR/context.md` read the `## Scope` block: `seed_paths`, `must_not_touch`, the commands, and `expansion_cap` (default 40 if absent). The map is **bounded by scope, not the whole repo** — this is what makes it work on large/legacy codebases.
 
-### Step 3 — Map the codebase
-For each significant file or module, document: path · one-line purpose · public interface (exported functions, classes, API routes, DB tables) · dependencies on other modules.
+### Step 3 — Map the seed area fully
+For every significant file under `seed_paths`, document: path · one-line purpose · public interface (exported functions, classes, API routes, DB tables) · dependencies on other modules. Also read the project manifest and README for stack/conventions.
 
-### Step 4 — Identify integration points
-Which existing APIs, DB tables, auth systems, or shared utilities must new code integrate with or avoid breaking?
+### Step 4 — Expand one hop (capped at expansion_cap)
+Map the immediate integration surface, stopping once you have added `expansion_cap` files:
+- **Dependencies** — what the seed files import/include (read their import statements; map those files).
+- **Dependents/callers** — `grep` the repo for references to the seed's exported symbols and module paths; map the files that call into the seed.
+If the hop would exceed `expansion_cap`, map what fits and add a note: "This change reaches widely (N+ neighbors). Mapped the first <cap>; consider narrowing seed_paths or raising expansion_cap." List the un-mapped spillover paths. Never silently skip the cap.
 
 ### Step 5 — Write RUN_DIR/codebase_map.md
 ```
 # Codebase Map
+## Scope Covered (seed_paths + expanded neighbors; note any spillover beyond the cap)
 ## Tech Stack Confirmed
-## Directory Structure
+## Directory Structure (scoped)
 ## Key Modules (path | purpose | public interface)
+## Integration Surface (the 1-hop callers + dependencies the change must NOT break — the blast radius)
 ## Existing API Routes
 ## Database Schema (tables + key columns)
 ## Shared Utilities (do not duplicate)
