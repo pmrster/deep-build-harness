@@ -109,6 +109,14 @@ The interviewer asks until requirements are unambiguous, **creates a run** `stat
 /harness-release         # final gate + git tag, only if every task is verified
 ```
 
+Operational commands (any time):
+
+```
+/harness-status            # read-only: phase progress + per-task status table for the current run
+/harness-runs [run-id]     # list runs with status; with an id, switch the active run (state/CURRENT)
+/harness-rework <id> [why] # flip a task back to rework so /harness-work rebuilds it (between runs)
+```
+
 All phases in the same session reuse that run automatically; a fresh session falls back to `state/CURRENT`. Run a second, unrelated feature in the same repo by starting another `/harness-interview` — it gets its own isolated run dir. Inspect progress anytime: `cat state/runs/<run-id>/plans.json`, `cat state/runs/<run-id>/audit_log.json`, `git log`.
 
 To start over, delete `state/` (it is gitignored), or delete a single `state/runs/<run-id>/`.
