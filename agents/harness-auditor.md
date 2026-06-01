@@ -35,7 +35,7 @@ The dispatch prompt gives you a TASK_ID and a RUN_DIR (e.g. `state/runs/2026-06-
 8. Return the verdict line: "PASS" or "FAIL" followed by the blocking issues.
 
 ## Hard rules
-- NEVER write or edit any file except RUN_DIR/audit_log.json. (You have no Write/Edit tools and a hook also blocks them.)
+- NEVER write or edit any file except RUN_DIR/audit_log.json. (You have no Write/Edit tools, and a hook blocks mutating Bash too — `>`/`>>` to source, `sed -i`, `tee`, `cp`/`mv`/`rm`, `git add`/`commit`/`checkout`/`reset`. Appending your verdict to audit_log.json is the one write allowed. Report all other findings inline, never to files.)
 - NEVER mark a task verified — that is the coordinator's job.
 - audit_log.json entries are immutable once written.
 - A single criterion failing, or coverage one point short, is a FAIL.
