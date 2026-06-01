@@ -31,7 +31,7 @@ For each TASK_ID:
      - retry: reset attempt and go to step 2.
      - skip: leave status as is, continue to next task.
      - abort: stop the run.
-8. After each task, delete state/.active_role (or set it to "coordinator").
+8. After each task, delete state/.active_role (the coordinator writes plans.json itself and needs no role restriction).
 
 ## After all tasks
 If every task is "verified":
