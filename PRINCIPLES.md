@@ -48,8 +48,12 @@ The ceremony is the value. The expensive failures in agent coding are *upstream*
 
 ## Where it sits
 
-- **[karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)** — four behavioral *principles* in a single `CLAUDE.md` (think before coding, simplicity, surgical changes, goal-driven). A lightweight nudge to one agent. We share that spirit but operationalize it as a multi-agent pipeline with enforced gates.
-- **[claude-code-harness](https://github.com/Chachamaru127/claude-code-harness)** — "Plan · Work · Review · Ship" with source-of-truth files and bounded execution. Closest neighbor. We go further: a confidence-gated **interview**, a **codebase scan** and **architecture** phase before planning, an **integration** phase, and — the key difference — an **independent skeptical auditor** that re-runs every criterion itself rather than a review step adjacent to the implementer.
+Most Claude Code workflow tooling falls into two camps, and this harness deliberately goes past both:
+
+- **Behavioral skill collections** — a toolbox of process skills (brainstorm, plan, TDD, review) the main agent invokes ad hoc. Flexible and broad, but nothing is *enforced*: the same agent that builds also grades, and discipline is opt-in per step.
+- **Lightweight plan/work/ship loops** — keep a plan and work bounded to it with source-of-truth files. Good structure, but verification is usually a review step *adjacent to* the implementer, not an independent authority.
+
+This harness goes further on three axes at once: front-loaded design rigor (confidence-gated **interview** → **scan** → **architecture** before planning), **machine-verifiable criteria** carried as data in a locked `plans.json`, and an **independent, read-only auditor** that re-runs every criterion itself rather than reviewing the implementer's word.
 
 Our moat is the combination: **front-loaded design rigor + machine-verifiable criteria + an adversarial, evidence-only auditor.**
 
