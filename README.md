@@ -1,24 +1,47 @@
 # Deep Build Harness
 
-A Claude Code plugin that runs your work through a disciplined, multi-agent **expert-team pipeline** instead of a single best-effort pass. It interviews you until requirements are unambiguous, designs the system, decomposes it into machine-verifiable tasks, builds each one with TDD, and has an **independent auditor** re-run every check before anything is called done.
+A Claude Code plugin that runs your work through a disciplined, multi-agent **expert-team pipeline** instead of a single best-effort pass. It interviews you until requirements are unambiguous, maps the codebase, designs the system, decomposes it into machine-verifiable tasks, builds each one with TDD, and has an **independent auditor** re-run every check before anything is called done.
 
-It uses only native Claude Code primitives — **subagents, skills, hooks, and file-based state** — so it works on any plan. No external orchestrator, no `claude -p` subprocesses.
+It uses only native Claude Code primitives — **subagents, skills, hooks, and file-based state** — so it works on any plan. No external orchestrator, no `claude -p` subprocesses, no separate program to run: install it and drive it with slash commands inside a normal Claude Code session.
 
-For the core concept, the five principles, and how this differs from lighter harnesses, see **[PRINCIPLES.md](PRINCIPLES.md)**.
+---
 
-## Why
+## Why we built it
 
-| Plain subagents | This harness |
+A single agent told to "build X" tends to: make silent assumptions, design as it types, mark its own work done, and lose the thread as its context fills. The failure usually isn't capability — it's **discipline and verification**. Nothing forced it to pin requirements, nothing designed before coding, and the thing that graded the result was the same thing that wrote it.
+
+The core idea: **simulate an expert software team as a set of isolated agents that communicate only through files, and put an independent skeptic between "done" and "shipped."**
+
+Each role is a separate agent with its own fresh context and its own narrow tool permissions. No role inherits another's conversation; the only thing that crosses a boundary is a file on disk. One role in particular — the **auditor** — never writes source and never trusts a report: it re-runs every acceptance criterion itself, and is calibrated to fail borderline work.
+
+That's the whole bet: **rigor up front (interview → design → plan), isolation during work, and adversarial verification before release.**
+
+## How it improves normal Claude agent work
+
+| Plain agent / ad-hoc subagents | Deep Build Harness |
 |---|---|
-| Claude assumes it understood the ask | Interview until confidence ≥ 80, zero unknowns |
-| Architecture decided inline | Dedicated, user-approved design step |
-| Self-evaluation (biased) | Independent auditor re-runs every criterion |
-| Context rot in one window | Each agent is context-isolated |
-| "Looks done" | Done only when the auditor verifies it with evidence |
+| Assumes it understood the ask | Interviews until confidence ≥ 80, zero unknowns |
+| Designs inline while coding | Dedicated, user-approved architecture step before any code |
+| Grades its own output (biased) | **Independent auditor re-runs every criterion** with evidence |
+| "Looks done" / "tested manually" | Done only when every machine-checkable criterion passes |
+| Everything in one context window (rot) | Each agent is context-isolated; fresh window per role |
+| Plan lives in the model's head | Locked `plans.json` with runnable acceptance criteria |
+| Work lost when the session dies | File-state, run-namespaced, resumable across sessions |
+| Any agent can edit anything | Per-role tool isolation (the auditor literally cannot write) |
 
-## The pipeline
+## Five principles
 
-Each run is isolated under `state/runs/<run-id>/` (RUN_DIR below), so multiple features/sessions in one repo never collide.
+1. **Files are the contract, not chat.** Every phase writes one file; the next reads it. State is durable, inspectable, and survives a dead session. Memory is never the source of truth.
+2. **Each agent is context-isolated.** Worker, auditor, integration run as native subagents with fresh windows. Context rot can't accumulate, and one role can't quietly lean on another's reasoning.
+3. **Acceptance criteria are runnable, not prose.** "Works correctly" is banned. Every criterion is a command with a checkable result (`pytest … exit 0`, `curl … 201`, `coverage ≥ 85`). If running it can't verify it, it isn't a criterion.
+4. **Verification is independent and skeptical.** The auditor has no Write/Edit tools, re-executes every criterion itself, and treats "the worker said it works" as zero evidence. When in doubt → FAIL.
+5. **Permissions are policy, enforced twice.** Each role's allowed tools are declared once (agent frontmatter) and backstopped by hooks. Read-only roles are read-only by construction, not by good intentions.
+
+---
+
+## How it works — the 8 phases
+
+Each run is isolated under `state/runs/<run-id>/` (referred to as **RUN_DIR**), so multiple features or sessions in one repo never collide.
 
 ```
 /harness-interview     Phase 0  → RUN_DIR/context.md         interview until unambiguous (creates the run)
@@ -32,19 +55,33 @@ Each run is isolated under `state/runs/<run-id>/` (RUN_DIR below), so multiple f
 /harness-release       Phase 8  → RUN_DIR/release_proof/ + git tag (only if all verified)
 ```
 
-Each phase writes one file. The next phase reads it. Agents never share memory — **files are the only channel.**
+Each phase writes one file; the next reads it. Agents never share memory — **files are the only channel.** Phases 0–3 and 7–8 are interactive skills you approve at a gate; phase 4 is the automated build loop.
 
-## Install
+### Phase 4 — the coordinator
 
-Add the plugin to Claude Code (from this directory or your plugin marketplace), then run the commands inside a normal Claude Code session in your target project:
+`/harness-work` runs in your session and, **sequentially** for each task in dependency order:
 
-```
-/harness-interview
-```
+1. orders tasks with `orchestrator/resolver.py` (deterministic; stops on cycles / unknown deps),
+2. dispatches a **worker** subagent (TDD, implements one task, commits, writes `work_log.json`),
+3. dispatches an **auditor** subagent (re-runs every acceptance criterion itself, writes `audit_log.json`),
+4. on FAIL runs a **rework loop** (max 3 attempts, then asks you: retry / skip / abort),
+5. when all tasks are verified, runs an **integration** subagent end-to-end.
 
-Follow the gate at the end of each phase. Phases 0–3 and 7–8 are interactive; `/harness-work` runs the build loop.
+The coordinator is the **sole writer of `plans.json`**. Workers and the auditor write only their own append-only logs and return results. Runs are **resumable** — re-running skips already-verified tasks.
 
-## Quickstart
+### Roles and permissions
+
+| Agent | Can write | Purpose |
+|---|---|---|
+| worker | source, `work_log.json`, commits | implement one task with TDD |
+| auditor | `audit_log.json` only | independently verify; **no Write/Edit** |
+| integration | `integration_log.json` only | end-to-end flows; **no Write/Edit** |
+
+Read-only roles are enforced twice: the agent's `tools` / `disallowedTools` frontmatter omits Write/Edit (authoritative), and a `PreToolUse` hook blocks them as a backstop (signalled by `state/.active_role`). A `PostToolUse` hook logs every Write/Edit to the run's `file_change_log.jsonl`. See `hooks/README.md`.
+
+---
+
+## Usage
 
 Start in any folder — greenfield is fine. Use a git repo so workers can commit and the release phase can tag.
 
@@ -53,7 +90,7 @@ mkdir my-app && cd my-app && git init
 claude                       # the plugin loads automatically (see Install)
 ```
 
-Then drive the pipeline from inside the session. You can pass your idea straight to the interview:
+Drive the pipeline from inside the session. You can pass your idea straight to the interview:
 
 ```
 /harness-interview build a Python CLI todo app with add, list, and done commands
@@ -74,36 +111,19 @@ All phases in the same session reuse that run automatically; a fresh session fal
 
 To start over, delete `state/` (it is gitignored), or delete a single `state/runs/<run-id>/`.
 
-### Local install for testing
+### Install
+
+Add the plugin to Claude Code from a marketplace, or for local/dev use symlink it into your user skills dir and restart `claude`:
 
 ```bash
-# Symlink the plugin into your user skills dir, then restart claude:
-ln -s /path/to/claude-agents-harness ~/.claude/skills/deep-build-harness
-# It loads next session as deep-build-harness@skills-dir.
+ln -s /path/to/deep-build-harness ~/.claude/skills/deep-build-harness
+# Loads next session as deep-build-harness@skills-dir.
 # Verify with /plugin and /agents. Remove with: rm ~/.claude/skills/deep-build-harness
 ```
 
-## How phase 4 works
+Validate the plugin without loading it: `claude plugin validate /path/to/deep-build-harness`.
 
-`/harness-work` (the coordinator) runs in your session and, **sequentially** for each task in dependency order:
-
-1. orders tasks with `orchestrator/resolver.py` (deterministic; stops on cycles/unknown deps),
-2. dispatches a **worker** subagent (TDD, implements one task, commits, writes `work_log.json`),
-3. dispatches an **auditor** subagent (re-runs every acceptance criterion itself, writes `audit_log.json`),
-4. on FAIL runs a **rework loop** (max 3, then asks you: retry / skip / abort),
-5. when all tasks are verified, runs an **integration** subagent end-to-end.
-
-The coordinator is the **sole writer of `plans.json`**. Workers and the auditor write only their own append-only logs and return results. Runs are **resumable** — re-running skips already-verified tasks.
-
-## Roles and permissions
-
-| Agent | Can write | Purpose |
-|---|---|---|
-| worker | source, `work_log.json`, commits | implement one task with TDD |
-| auditor | `audit_log.json` only | independently verify; **no Write/Edit** |
-| integration | `integration_log.json` only | end-to-end flows; **no Write/Edit** |
-
-Read-only roles are enforced twice: the agent's `tools:` frontmatter omits Write/Edit, and a `PreToolUse` hook blocks them as a backstop (signalled by `state/.active_role`). A `PostToolUse` hook logs every Write/Edit to `state/file_change_log.jsonl`.
+---
 
 ## State files
 
@@ -122,9 +142,19 @@ All per-run files live under `state/runs/<run-id>/`. A top-level `state/CURRENT`
 
 `state/` is created at runtime and gitignored. Each run is isolated, so concurrent runs in one repo never clobber each other.
 
-## Quality lever
+## The quality lever
 
-`calibration/audit-fail-examples.md` trains the auditor to treat specific patterns as hard failures (wrong response schema, coverage one point short, missing error handling, hardcoded secrets, tests-after-code, path mismatches, self-reported evidence). **Add examples here to raise output quality over time** — it is the main tuning knob.
+`calibration/audit-fail-examples.md` trains the auditor to treat specific patterns as hard failures (wrong response schema, coverage one point short, missing error handling, hardcoded secrets, tests-after-code, path mismatches, self-reported evidence). Out of the box, models grade LLM output leniently; **adding examples here is the primary way to raise output quality over time.**
+
+## When to use it
+
+- Multi-step features where a wrong assumption or a broken interface is expensive.
+- Work that must be genuinely *verified*, not "looks done."
+- Long-running or team builds where durable, resumable, auditable state matters.
+
+## When not to
+
+- One-line fixes, throwaway scripts, exploration. The ceremony costs more than it saves — use a plain agent.
 
 ## Requirements
 
@@ -134,10 +164,18 @@ All per-run files live under `state/runs/<run-id>/`. A top-level `state/CURRENT`
 
 ## Development
 
-```
+```bash
 python3 -m pytest tests/        # resolver unit tests
 ```
 
+## Non-negotiables (if you extend this)
+
+- An agent writes only its own file(s); never hand state agent-to-agent in memory.
+- The auditor never writes source and never accepts self-reported evidence.
+- Every acceptance criterion stays a runnable command.
+- Tool permissions remain declared once and enforced by hooks too.
+- Calibration examples are how you raise quality over time — add to them when you find a new failure mode.
+
 ## Status
 
-All 8 phases implemented. Sequential execution (parallel-within-wave is a planned enhancement). The resolver and hooks are unit-tested; a full live end-to-end run on a real project is the next validation step.
+All 8 phases implemented. Execution is sequential (parallel-within-wave is a planned enhancement). The resolver and hooks are unit-tested and the plugin loads/validates cleanly; a full live end-to-end run on a real project is the next validation step.
