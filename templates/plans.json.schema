@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "harness plans.json",
+  "type": "object",
+  "required": ["locked", "approved_at", "tasks"],
+  "properties": {
+    "locked": { "type": "boolean" },
+    "approved_at": { "type": ["string", "null"] },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "title", "description", "wave",
+          "files_expected", "acceptance_criteria", "quality_bar", "status"
+        ],
+        "properties": {
+          "id": { "type": "string", "description": "e.g. 2.1" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "wave": { "type": "integer", "minimum": 1 },
+          "parallel_with": { "type": "array", "items": { "type": "string" } },
+          "depends_on": { "type": "array", "items": { "type": "string" } },
+          "files_expected": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "files this task owns; must not overlap any other task"
+          },
+          "acceptance_criteria": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 5,
+            "items": { "type": "string", "description": "a runnable, checkable command" }
+          },
+          "quality_bar": {
+            "type": "object",
+            "properties": {
+              "test_coverage": { "type": "integer", "minimum": 0, "maximum": 100 },
+              "no_lint_errors": { "type": "boolean" },
+              "no_type_errors": { "type": "boolean" },
+              "max_function_lines": { "type": "integer", "minimum": 1 }
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in_progress", "submitted", "verified", "rework"]
+          },
+          "assigned_worker": { "type": ["string", "null"] },
+          "rework_count": { "type": "integer", "minimum": 0 },
+          "rework_notes": { "type": "array", "items": { "type": "string" } },
+          "audit_verdict": { "type": ["string", "null"], "enum": ["PASS", "FAIL", null] }
+        }
+      }
+    }
+  }
+}
