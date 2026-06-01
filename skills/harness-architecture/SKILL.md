@@ -52,3 +52,4 @@ Show `RUN_DIR/architecture.md`. Ask: "Does this design look correct? Any conflic
 - Every API contract includes all error cases, not just the happy path.
 - Follow patterns already established in codebase_map.md.
 - If two valid designs exist, present both with trade-offs and let the user choose.
+- Read `calibration/architecture-examples.md` (ships at the plugin root, e.g. `$CLAUDE_PLUGIN_ROOT/calibration/`) and hold every contract and decision to that GOOD bar.
