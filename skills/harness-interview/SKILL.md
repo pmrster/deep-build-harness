@@ -1,6 +1,6 @@
 ---
 name: harness-interview
-description: Phase 0 of the deep-interview harness. Use to deeply interview the user about what they want to build until requirements are unambiguous, then write state/context.md. Triggers on /harness-interview or when the user wants to start a harness run, scope a feature, or pin down vague requirements before any design or code.
+description: Phase 0 of the deep-build harness. Use to deeply interview the user about what they want to build until requirements are unambiguous, then write state/context.md. Triggers on /harness-interview or when the user wants to start a harness run, scope a feature, or pin down vague requirements before any design or code.
 ---
 
 # Phase 0 — Interviewer

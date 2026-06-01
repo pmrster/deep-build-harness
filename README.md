@@ -1,4 +1,4 @@
-# Deep Interview Harness
+# Deep Build Harness
 
 A Claude Code plugin that runs your work through a disciplined, multi-agent **expert-team pipeline** instead of a single best-effort pass. It interviews you until requirements are unambiguous, designs the system, decomposes it into machine-verifiable tasks, builds each one with TDD, and has an **independent auditor** re-run every check before anything is called done.
 
@@ -78,9 +78,9 @@ To start over, delete `state/` (it is gitignored), or delete a single `state/run
 
 ```bash
 # Symlink the plugin into your user skills dir, then restart claude:
-ln -s /path/to/claude-agents-harness ~/.claude/skills/deep-interview-harness
-# It loads next session as deep-interview-harness@skills-dir.
-# Verify with /plugin and /agents. Remove with: rm ~/.claude/skills/deep-interview-harness
+ln -s /path/to/claude-agents-harness ~/.claude/skills/deep-build-harness
+# It loads next session as deep-build-harness@skills-dir.
+# Verify with /plugin and /agents. Remove with: rm ~/.claude/skills/deep-build-harness
 ```
 
 ## How phase 4 works

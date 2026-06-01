@@ -1,6 +1,6 @@
 ---
 name: harness-docs
-description: Phase 7 of the deep-interview harness. Use after all tasks reach "verified" to write user-facing docs (README, CHANGELOG, API docs) describing what was actually built, not what was planned. Triggers on /harness-docs.
+description: Phase 7 of the deep-build harness. Use after all tasks reach "verified" to write user-facing docs (README, CHANGELOG, API docs) describing what was actually built, not what was planned. Triggers on /harness-docs.
 ---
 
 # Phase 7 — Documentation Writer

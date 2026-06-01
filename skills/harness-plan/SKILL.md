@@ -1,6 +1,6 @@
 ---
 name: harness-plan
-description: Phase 3 of the deep-interview harness. Use after state/architecture.md is approved to decompose it into the smallest independently buildable tasks with machine-verifiable acceptance criteria, grouped into parallel waves, and write state/plans.json. Triggers on /harness-plan.
+description: Phase 3 of the deep-build harness. Use after state/architecture.md is approved to decompose it into the smallest independently buildable tasks with machine-verifiable acceptance criteria, grouped into parallel waves, and write state/plans.json. Triggers on /harness-plan.
 ---
 
 # Phase 3 — Planner
