@@ -79,6 +79,8 @@ The coordinator is the **sole writer of `plans.json`**. Workers and the auditor 
 
 Each role has a distinct UI color (above) and `model: inherit` by default, so it works on any plan. The coordinator picks a model per dispatch — least-powerful-that-fits, with the **auditor getting the most capable model available** (it's the quality lever) — and never fails a run if a preferred tier isn't on your plan.
 
+For changes to existing or legacy code, the worker self-checks four **accuracy guardrails** before submitting — it changed only its assigned files, the neighboring code's existing tests still pass, it followed the codebase's conventions, and it didn't break a contract a caller depends on — and the auditor independently re-verifies all four before a task is verified.
+
 Read-only roles are enforced twice: the agent's `tools` / `disallowedTools` frontmatter omits Write/Edit (authoritative), and a `PreToolUse` hook blocks them as a backstop (signalled by `state/.active_role`). A `PostToolUse` hook logs every Write/Edit to the run's `file_change_log.jsonl`. See `hooks/README.md`.
 
 ---
