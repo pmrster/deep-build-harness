@@ -16,16 +16,18 @@ It uses only native Claude Code primitives — **subagents, skills, hooks, and f
 
 ## The pipeline
 
+Each run is isolated under `state/runs/<run-id>/` (RUN_DIR below), so multiple features/sessions in one repo never collide.
+
 ```
-/harness-interview     Phase 0  → state/context.md         interview until unambiguous
-/harness-scan          Phase 1  → state/codebase_map.md    map existing code first
-/harness-architecture  Phase 2  → state/architecture.md    schema + exact API contracts
-/harness-plan          Phase 3  → state/plans.json         tasks with machine-verifiable AC
+/harness-interview     Phase 0  → RUN_DIR/context.md         interview until unambiguous (creates the run)
+/harness-scan          Phase 1  → RUN_DIR/codebase_map.md    map existing code first
+/harness-architecture  Phase 2  → RUN_DIR/architecture.md    schema + exact API contracts
+/harness-plan          Phase 3  → RUN_DIR/plans.json         tasks with machine-verifiable AC
 /harness-work          Phase 4  → coordinator drives build per task (worker → auditor)
-                       Phase 5  → state/integration_log.json  end-to-end across tasks
-                       Phase 6  → state/audit_log.json     independent verdict per task
+                       Phase 5  → RUN_DIR/integration_log.json  end-to-end across tasks
+                       Phase 6  → RUN_DIR/audit_log.json     independent verdict per task
 /harness-docs          Phase 7  → README / CHANGELOG / docs
-/harness-release       Phase 8  → state/release_proof/ + git tag (only if all verified)
+/harness-release       Phase 8  → RUN_DIR/release_proof/ + git tag (only if all verified)
 ```
 
 Each phase writes one file. The next phase reads it. Agents never share memory — **files are the only channel.**
@@ -55,20 +57,20 @@ Then drive the pipeline from inside the session. You can pass your idea straight
 /harness-interview build a Python CLI todo app with add, list, and done commands
 ```
 
-The interviewer asks until requirements are unambiguous and writes `state/context.md`. Approve it, then run each phase as it prompts you:
+The interviewer asks until requirements are unambiguous, **creates a run** `state/runs/<run-id>/` (the id is a date + slug of your goal), writes its `context.md`, and records the id in `state/CURRENT`. Approve it, then run each phase as it prompts you:
 
 ```
-/harness-scan            # maps existing code (marks greenfield if empty) → state/codebase_map.md
-/harness-architecture    # schema + exact contracts → state/architecture.md   (you approve)
-/harness-plan            # tasks with verifiable criteria → state/plans.json   (you approve → locks)
+/harness-scan            # maps existing code (marks greenfield if empty) → RUN_DIR/codebase_map.md
+/harness-architecture    # schema + exact contracts → RUN_DIR/architecture.md   (you approve)
+/harness-plan            # tasks with verifiable criteria → RUN_DIR/plans.json   (you approve → locks)
 /harness-work            # builds each task: worker (TDD) → auditor, with rework loop
 /harness-docs            # README/CHANGELOG/API from the real code
 /harness-release         # final gate + git tag, only if every task is verified
 ```
 
-Each phase reads the previous phase's file and tells you the next command. Inspect progress anytime: `cat state/plans.json`, `cat state/audit_log.json`, `git log`.
+All phases in the same session reuse that run automatically; a fresh session falls back to `state/CURRENT`. Run a second, unrelated feature in the same repo by starting another `/harness-interview` — it gets its own isolated run dir. Inspect progress anytime: `cat state/runs/<run-id>/plans.json`, `cat state/runs/<run-id>/audit_log.json`, `git log`.
 
-To start over, delete `state/` (it is gitignored).
+To start over, delete `state/` (it is gitignored), or delete a single `state/runs/<run-id>/`.
 
 ### Local install for testing
 
@@ -103,7 +105,9 @@ Read-only roles are enforced twice: the agent's `tools:` frontmatter omits Write
 
 ## State files
 
-| File | Writer | Notes |
+All per-run files live under `state/runs/<run-id>/`. A top-level `state/CURRENT` holds the latest run id (the default a fresh session falls back to). `state/.active_role` is a transient `"<role> <run-id>"` marker the coordinator sets per dispatch (the hook's role signal).
+
+| File (under `state/runs/<run-id>/`) | Writer | Notes |
 |---|---|---|
 | `context.md` | interviewer | locked after your approval |
 | `codebase_map.md` | scanner | |
@@ -114,7 +118,7 @@ Read-only roles are enforced twice: the agent's `tools:` frontmatter omits Write
 | `integration_log.json` | integration | per run |
 | `file_change_log.jsonl` | post-tool hook | append-only |
 
-`state/` is created at runtime and gitignored.
+`state/` is created at runtime and gitignored. Each run is isolated, so concurrent runs in one repo never clobber each other.
 
 ## Quality lever
 

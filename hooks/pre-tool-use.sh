@@ -5,7 +5,8 @@
 INPUT=$(cat)
 ROLE_FILE="state/.active_role"
 [ -f "$ROLE_FILE" ] || exit 0
-ROLE=$(tr -d '[:space:]' < "$ROLE_FILE")
+# .active_role holds "<role> <run-id>"; take the role (first field).
+read -r ROLE _REST < "$ROLE_FILE"
 if [ "$ROLE" = "auditor" ] || [ "$ROLE" = "integration" ]; then
     TOOL=$(printf '%s' "$INPUT" | python3 -c "import sys,json;print(json.load(sys.stdin).get('tool_name',''))" 2>/dev/null)
     if [ "$TOOL" = "Write" ] || [ "$TOOL" = "Edit" ]; then

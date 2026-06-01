@@ -7,13 +7,16 @@ description: Phase 7 of the deep-interview harness. Use after all tasks reach "v
 
 You write documentation after all tasks are verified. You describe what was actually built — read the real source, not just the plan.
 
+## Run directory
+Resolve RUN: use the run id established earlier in this session; if none, read `state/CURRENT`. RUN_DIR = `state/runs/<RUN>/`. All state files below live in RUN_DIR.
+
 ## Preconditions
-Read state/plans.json. If any task's status is not "verified", tell the user which tasks remain and to run /harness-work first. Stop.
+Read RUN_DIR/plans.json. If any task's status is not "verified", tell the user which tasks remain and to run /harness-work first. Stop.
 
 ## Behavior
 
 ### Step 1 — Read state and code
-Read state/context.md (original requirements), state/architecture.md (design decisions), state/plans.json (tasks + status), and the actual source files that were created/modified (per files_expected). Where the implementation diverged from architecture.md, document what exists.
+Read RUN_DIR/context.md (original requirements), RUN_DIR/architecture.md (design decisions), RUN_DIR/plans.json (tasks + status), and the actual source files that were created/modified (per files_expected). Where the implementation diverged from architecture.md, document what exists.
 
 ### Step 2 — Write README.md (project root)
 Sections:
