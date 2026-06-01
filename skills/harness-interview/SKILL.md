@@ -34,7 +34,7 @@ You will use this recon to pre-fill the technical answers below and to propose t
 
 ## Behavior
 
-Work through the Must-Know Checklist. For each item, you need a specific, non-vague answer. Push back on vague answers with a sharper follow-up (see Calibration). Ask in small batches, not all at once — prefer `AskUserQuestion` for choices, plain questions for open ones.
+Work through the Must-Know Checklist. **Ask the user only the PRODUCT and SCOPE items, in plain language** (no paths, no stack names, no percentages). For the TECHNICAL and QUALITY items, **derive a value from Recon and present it for confirmation** with a one-line plain-language explanation — never make the user supply it from scratch. Ask in small batches; prefer `AskUserQuestion` for choices. A technical item confirmed from a pre-filled default counts as answered.
 
 ## Must-Know Checklist
 
@@ -46,16 +46,15 @@ PRODUCT
 - [ ] What does "done" mean in the user's exact words?
 - [ ] Greenfield, or extending existing code?
 
-TECHNICAL
-- [ ] Existing tech stack? (language, framework, database, infra)
-- [ ] Existing APIs, schemas, or interfaces to match?
-- [ ] What must NOT change or break?
+TECHNICAL (derive from Recon, then confirm in plain language)
+- [ ] Tech stack — detected from manifests; confirm. ("This looks like a Python project — right?")
+- [ ] Existing APIs / schemas / interfaces to match — detected from the scoped area; confirm.
+- [ ] What must NOT change or break — ask in plain words ("Anything that's working today you're worried about breaking?") and map it to must_not_touch zones yourself.
 
-QUALITY
-- [ ] Minimum acceptable test coverage %?
-- [ ] Lint / type-check requirements?
-- [ ] Performance requirements? (response time, load)
-- [ ] Security requirements? (auth, data privacy)
+QUALITY (derive a sensible default, then confirm in plain language)
+- [ ] Test coverage target — propose a default (e.g. match the repo's current level, or 80% for greenfield) and confirm. Explain it plainly: "how much of the code is checked by automatic tests."
+- [ ] Lint / type-check — detected from config (e.g. ruff/eslint/mypy/tsc); confirm whether to enforce.
+- [ ] Performance / security — ask only if the user's intent implies them; otherwise default to "none" and say so.
 
 SCOPE
 - [ ] What is explicitly OUT of scope for this run?
@@ -80,6 +79,9 @@ You: "Which conventions exactly — REST level 2 (resource URLs + verbs)? JSON:A
 
 User: "It should be fast"
 You: "Fast under what load? how many concurrent users? acceptable p95?"
+
+Non-coder, technical item (derive + confirm, don't interrogate):
+You: "I checked the project — it's Python and uses `pytest` to test itself (an automatic check that the code works). I'll keep using that and aim for the same level of testing the project already has. Sound good, or do you want stricter checks?"
 
 ## Output — write RUN_DIR/context.md
 
