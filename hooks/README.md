@@ -36,7 +36,7 @@ So the hook **failing open is acceptable by design.** Do not add brittle logic t
 ## Known, intentional behaviors
 
 - **Relative `state/.active_role`** — only resolves when the session CWD is the project root. By design (the harness runs from the project root).
-- **`python3` for JSON parsing** — if `python3` is missing, `pre` parses an empty tool name and does not block (fails open to layer 1); `post` is skipped. Documented dependency.
+- **`python3` only in `post-tool-use.sh`** — it uses stdlib `json` to parse the event and build the log line safely. `pre-tool-use.sh` needs no parsing (the `Write|Edit` matcher guarantees the tool) and is pure bash. If `python3` is missing, the post-hook log line is skipped; blocking (the pre-hook) is unaffected.
 - **Bash-redirect writes aren't captured** — the auditor writes `audit_log.json` via a shell redirect, not the Write tool, so it does not appear in `file_change_log.jsonl`. A `PostToolUse` hook on `Write|Edit` cannot see shell redirection. Expected.
 
 ## Checklist for adding or editing a hook

@@ -175,7 +175,7 @@ The harness is almost entirely prompt-driven (skills + agents). Python appears i
 | Where | What | Why Python, not a prompt |
 |---|---|---|
 | `orchestrator/resolver.py` | Deterministic dependency ordering of plan tasks (topological sort) + cycle / unknown-dep / duplicate-id detection. | Ordering is the one place a silent LLM mistake — running a task before its dependency exists — corrupts a whole run. Code makes it deterministic and unit-testable; the model can't "mis-order" it. The coordinator calls it via `$CLAUDE_PLUGIN_ROOT`, with an in-prompt fallback if it can't be located. |
-| `hooks/pre-tool-use.sh` and `post-tool-use.sh` | A one-line `python3 -c` parses the hook event JSON and builds the change-log line. | Parsing/serializing JSON in pure bash is fragile; a file path containing a quote or backslash would corrupt the log. `python3`'s stdlib `json` does it safely. |
+| `hooks/post-tool-use.sh` | A one-line `python3 -c` parses the hook event JSON and builds the change-log line. | Parsing/serializing JSON in pure bash is fragile; a file path containing a quote or backslash would corrupt the log. `python3`'s stdlib `json` does it safely. (`pre-tool-use.sh` is pure bash — its `Write|Edit` matcher makes parsing unnecessary.) |
 | `tests/test_resolver.py` | pytest unit tests for the resolver. | The resolver is the only component with real logic, so it's the only thing worth a test suite. |
 
 Everything else — the 8 phases, the coordinator loop, the role agents — is plain prompting over file-based state. So `python3` is a runtime requirement (for the resolver and the hooks), but the harness ships **no third-party Python dependencies**.
