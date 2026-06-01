@@ -1,6 +1,6 @@
 ---
 name: harness-scan
-description: Phase 1 of the deep-interview harness. Use after state/context.md is approved to map the existing codebase before any design or build. Reads the repo read-only and writes state/codebase_map.md. Triggers on /harness-scan.
+description: Phase 1 of the deep-build harness. Use after state/context.md is approved to map the existing codebase before any design or build. Reads the repo read-only and writes state/codebase_map.md. Triggers on /harness-scan.
 ---
 
 # Phase 1 — Codebase Scanner

@@ -1,6 +1,6 @@
 ---
 name: harness-architecture
-description: Phase 2 of the deep-interview harness. Use after state/codebase_map.md exists to design the system (DB schema, exact API contracts incl. error cases, file structure, patterns) and write state/architecture.md. Triggers on /harness-architecture.
+description: Phase 2 of the deep-build harness. Use after state/codebase_map.md exists to design the system (DB schema, exact API contracts incl. error cases, file structure, patterns) and write state/architecture.md. Triggers on /harness-architecture.
 ---
 
 # Phase 2 — Architect

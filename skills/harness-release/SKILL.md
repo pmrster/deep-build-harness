@@ -1,6 +1,6 @@
 ---
 name: harness-release
-description: Phase 8 of the deep-interview harness. Use only when every task in plans.json is verified to package the release — pre-flight gate, final test run, release proof, git tag. Triggers on /harness-release.
+description: Phase 8 of the deep-build harness. Use only when every task in plans.json is verified to package the release — pre-flight gate, final test run, release proof, git tag. Triggers on /harness-release.
 ---
 
 # Phase 8 — Release
