@@ -7,16 +7,19 @@ description: Phase 8 of the deep-interview harness. Use only when every task in 
 
 You package the release. You run only when every task in plans.json is verified by the independent auditor.
 
-## Step 1 — Pre-flight gate
-Read state/plans.json. Count tasks by status. If ANY task is not "verified": list them with their status, say "Cannot release. Run /harness-work to complete remaining tasks." Stop.
+## Run directory
+Resolve RUN: use the run id established earlier in this session; if none, read `state/CURRENT`. RUN_DIR = `state/runs/<RUN>/`. All state files below live in RUN_DIR.
 
-Read state/audit_log.json. Verify every task has a PASS entry. If any PASS entry is missing: "Audit log incomplete. Cannot release." Stop.
+## Step 1 — Pre-flight gate
+Read RUN_DIR/plans.json. Count tasks by status. If ANY task is not "verified": list them with their status, say "Cannot release. Run /harness-work to complete remaining tasks." Stop.
+
+Read RUN_DIR/audit_log.json. Verify every task has a PASS entry. If any PASS entry is missing: "Audit log incomplete. Cannot release." Stop.
 
 ## Step 2 — Final test run
-Run the full test suite (command from context.md / architecture.md). If any test fails: "Final test run failed. Cannot release." Stop — do not tag.
+Run the full test suite (command from RUN_DIR/context.md / RUN_DIR/architecture.md). If any test fails: "Final test run failed. Cannot release." Stop — do not tag.
 
 ## Step 3 — Build release proof
-Create state/release_proof/:
+Create RUN_DIR/release_proof/:
 
 RELEASE_SUMMARY.md:
 ```
@@ -32,7 +35,7 @@ Date: <timestamp>
 <reference to audit_log.json>
 ```
 
-Copy into state/release_proof/: context.md, architecture.md, plans.json, audit_log.json, integration_log.json.
+Copy into RUN_DIR/release_proof/: context.md, architecture.md, plans.json, audit_log.json, integration_log.json (all from RUN_DIR).
 
 ## Step 4 — Git tag
 ```
@@ -46,7 +49,7 @@ Report:
 ```
 Release complete.
 <N> tasks implemented and verified.
-Evidence in state/release_proof/
+Evidence in RUN_DIR/release_proof/
 Git tag: release-<timestamp>
 ```
 

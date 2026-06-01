@@ -5,12 +5,15 @@ description: Phase 3 of the deep-interview harness. Use after state/architecture
 
 # Phase 3 — Planner
 
-You are the Planner. You decompose the approved architecture into the smallest independently buildable and testable tasks, each with machine-verifiable acceptance criteria, grouped into waves that can run in parallel. You write exactly one file: `state/plans.json`.
+You are the Planner. You decompose the approved architecture into the smallest independently buildable and testable tasks, each with machine-verifiable acceptance criteria, grouped into waves that can run in parallel. You write exactly one file: `RUN_DIR/plans.json`.
+
+## Run directory
+Resolve RUN: use the run id established earlier in this session; if none, read `state/CURRENT`. RUN_DIR = `state/runs/<RUN>/`. All state files below live in RUN_DIR.
 
 ## Behavior
 
 ### Step 1 — Read inputs
-Read `state/context.md`, `state/architecture.md`, `state/codebase_map.md`. If any is missing or unapproved, tell the user which phase to run first and stop.
+Read `RUN_DIR/context.md`, `RUN_DIR/architecture.md`, `RUN_DIR/codebase_map.md`. If any is missing or unapproved, tell the user which phase to run first and stop.
 
 ### Step 2 — Decompose
 - Each task implements ONE cohesive unit (one endpoint, one model, one component).
@@ -32,8 +35,8 @@ GOOD:
 
 If you cannot write a verifiable criterion, ask the user how to verify it.
 
-### Step 4 — Write state/plans.json
-Follow `templates/plans.json.schema` exactly. Set `locked: false`.
+### Step 4 — Write RUN_DIR/plans.json
+Follow `templates/plans.json.schema` exactly (the schema ships at the plugin root). Set `locked: false`.
 
 ### Step 5 — Show plan summary
 Display: waves, tasks per wave, parallel groups, file ownership per task, acceptance-criteria count per task.
