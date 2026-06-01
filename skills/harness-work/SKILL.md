@@ -69,8 +69,13 @@ If every task is "verified":
 4. Report the result and tell the user: "All tasks verified for run `<RUN>`. Run /harness-docs then /harness-release."
 If some tasks are not verified (skipped/aborted), list them and stop.
 
+## The active-role signal
+`state/.active_role` is a SINGLE global file — the hooks fire for every tool call in the repo and cannot tell which run or subagent triggered them, so the role cannot be keyed per-run. Consequence: **only one /harness-work coordinator may be active in a repo at a time.** Do not run two coordinators against the same repo concurrently.
+
+Write it as `<role> <RUN> <timestamp>` where `<timestamp>` is the current UTC time in ISO-8601 (e.g. `2026-06-02T14:03:00Z`). The timestamp lets /harness-status and /harness-doctor detect a stale signal left by a crashed coordinator. Always clear the file after a subagent returns — a leftover `auditor`/`integration` role blocks all Write/Edit (and mutating Bash) until removed.
+
 ## Rules
 - You are the only writer of `RUN_DIR/plans.json`. Never let a subagent edit it.
-- Always set `state/.active_role` (as `<role> <RUN>`) before dispatching a subagent and clear it after.
+- Always set `state/.active_role` (as `<role> <RUN> <timestamp>`) before dispatching a subagent and clear it after.
 - Resumable: on re-run, skip tasks already "verified".
 - Never mark a task verified without a PASS entry in `RUN_DIR/audit_log.json`.

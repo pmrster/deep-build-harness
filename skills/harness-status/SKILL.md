@@ -15,7 +15,8 @@ Resolve RUN: use the run id established earlier in this session; if none, read `
    context.md (Phase 0) → codebase_map.md (1) → architecture.md (2) → plans.json (3) → audit_log.json entries (4–6).
 2. If `RUN_DIR/plans.json` exists, print a table, one row per task: id · title · status · audit_verdict · rework_count. Note whether `locked` is true.
 3. Tally: N verified / M total.
-4. Suggest the next command: not locked → `/harness-plan`; locked with pending/rework tasks → `/harness-work`; all verified → `/harness-docs` then `/harness-release`.
+4. Stale active-role check. Read `state/.active_role` (via `python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/active_role.py"` if available, else read the file directly: format `<role> <run> <timestamp>`). If it exists AND no /harness-work coordinator is currently running, it is stale — a crashed coordinator left it and it now blocks all Write/Edit (and mutating Bash for auditor/integration roles). Warn: `⚠️ Stale active role: "<contents>" (age <Xm>). It blocks file writes. Clear it: rm state/.active_role`. If `age_seconds` is large (> a few minutes), say so explicitly.
+5. Suggest the next command: not locked → `/harness-plan`; locked with pending/rework tasks → `/harness-work`; all verified → `/harness-docs` then `/harness-release`.
 
 ## Rules
 - Never write or edit any file. (You have no Write/Edit tools.)
