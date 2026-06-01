@@ -60,6 +60,12 @@ SCOPE
 - [ ] What is explicitly OUT of scope for this run?
 - [ ] What has already been tried and failed?
 
+### Translate intent → change scope (existing/large repos)
+From Recon plus the user's own words, propose where the change lives so the scan stays bounded:
+- grep the repo for the user's keywords (e.g. "password reset" → `password`, `reset`, `auth`) to find the likely area.
+- Propose **seed_paths** (the directory/module the change centers on) and **must_not_touch** zones, and confirm in plain language: "Sounds like this lives around `src/auth/` and shouldn't touch billing — correct?"
+- For greenfield, leave seed_paths empty.
+
 ## Confidence Scoring (internal — never show the user)
 
 Score 0–100 after each exchange:
@@ -93,6 +99,14 @@ You: "I checked the project — it's Python and uses `pytest` to test itself (an
 ## Definition of Done (user's exact words)
 ## Constraints (must not change)
 ## Out of Scope
+## Scope
+  - repo_type: greenfield | existing | large/legacy
+  - seed_paths: [change area, e.g. src/auth/]   # empty for greenfield
+  - must_not_touch: [zones to avoid]
+  - build_command: <command or none>
+  - test_command: <command or none>
+  - lint_command: <command or none>
+  - expansion_cap: 40                            # max files for the scan's 1-hop
 ## Quality Bar
   - test_coverage: X%
   - lint: strict | standard | none
