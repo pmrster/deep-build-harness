@@ -37,3 +37,20 @@ def test_diamond_dependencies():
     assert out[-1] == "d"
     assert set(out[1:3]) == {"b", "c"}
     assert out[1] == "b"
+
+
+def test_cycle_raises():
+    p = plans([
+        {"id": "a", "depends_on": ["b"]},
+        {"id": "b", "depends_on": ["a"]},
+    ])
+    with pytest.raises(CycleError):
+        resolve(p)
+
+
+def test_unknown_dependency_raises():
+    p = plans([
+        {"id": "a", "depends_on": ["ghost"]},
+    ])
+    with pytest.raises(UnknownDependencyError):
+        resolve(p)
