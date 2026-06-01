@@ -29,6 +29,12 @@ Never fail a run because a preferred model is unavailable — degrade to inherit
 ## Preconditions
 Load `RUN_DIR/plans.json`. If it does not exist or `locked` is not true, tell the user to run /harness-plan and stop.
 
+Then validate its structure before dispatching anything. Run the validator shipped with the plugin:
+- if `$CLAUDE_PLUGIN_ROOT` is set: `python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/validate_plans.py" RUN_DIR/plans.json`
+- else locate it next to the resolver under the install and run it on `RUN_DIR/plans.json`.
+- Exit 0 → valid, continue. Exit 4 (unreadable/bad JSON) or 5 (invalid structure: missing fields, bad status, files_expected overlap, unknown dependency, bad acceptance_criteria count) → show stderr and stop; the plan must be fixed via /harness-plan before any work runs.
+- If the validator cannot be located, fall back to your own check: every task has id/title/wave/files_expected/acceptance_criteria(2-5)/quality_bar/status, statuses valid, no two tasks share a files_expected path, every depends_on names an existing task.
+
 ## Order
 Order the tasks by dependency. Prefer the deterministic resolver shipped with the plugin:
 - if `$CLAUDE_PLUGIN_ROOT` is set: `python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py" RUN_DIR/plans.json`
