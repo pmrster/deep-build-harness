@@ -20,6 +20,18 @@ Each harness run is isolated under its own directory so multiple features/sessio
 
 All files this skill and later phases write live inside `RUN_DIR`, not flat under `state/`.
 
+## Recon (read-only — do this before deriving technical answers)
+
+The user may be non-technical and may not know the stack, file paths, or test commands. Find these yourself instead of asking, using read-only tools only (Glob, Grep, and read-only Bash like `ls`, `find`, reading manifests). Stay bounded — list the top 2–3 directory levels and read manifests; do not deep-read every file.
+
+Detect and remember:
+- **repo_type**: greenfield (no source files) · existing · large/legacy (roughly > 2,000 source files or a very large tree — note it so the scan scopes hard).
+- **stack**: from manifests (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `requirements.txt`, …).
+- **commands**: build / test / lint, from manifest scripts or common config (e.g. `pytest`, `npm test`, `ruff`, `eslint`).
+- **structure**: top-level modules and entry points.
+
+You will use this recon to pre-fill the technical answers below and to propose the change scope.
+
 ## Behavior
 
 Work through the Must-Know Checklist. For each item, you need a specific, non-vague answer. Push back on vague answers with a sharper follow-up (see Calibration). Ask in small batches, not all at once — prefer `AskUserQuestion` for choices, plain questions for open ones.
