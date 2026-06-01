@@ -125,6 +125,16 @@ All phases in the same session reuse that run automatically; a fresh session fal
 
 To start over, delete `state/` (it is gitignored), or delete a single `state/runs/<run-id>/`.
 
+### Fast path for small changes
+
+For a small bounded change — a bug fix, a tweak, a one-function addition — the full eight-phase pipeline is overkill. Use the fast path instead:
+
+```
+/harness-quick fix the off-by-one in resolver pagination
+```
+
+`/harness-quick` asks a couple of plain-language questions, confirms the change once, then runs the **same worker and independent auditor with the full accuracy guardrails** — it just skips the architecture document, multi-wave planning, and the long interview. If the change turns out to be large (new schema, new API, many files), it stops and tells you to run `/harness-interview` for the full pipeline instead. Quick runs are normal runs: they show up in `/harness-status` and `/harness-runs`.
+
 ### Works with which Claude Code mode?
 
 The harness writes files every phase (state, then real code), so the permission mode matters:
