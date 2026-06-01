@@ -111,6 +111,18 @@ All phases in the same session reuse that run automatically; a fresh session fal
 
 To start over, delete `state/` (it is gitignored), or delete a single `state/runs/<run-id>/`.
 
+### Works with which Claude Code mode?
+
+The harness writes files every phase (state, then real code), so the permission mode matters:
+
+| Mode | Works? | Notes |
+|---|---|---|
+| **Normal / accept-edits** | ✅ best | Recommended for `/harness-work` — workers edit, commit, and write logs without a prompt on every step. |
+| **Ask (default prompts)** | ✅ but noisy | Every worker Write/Edit/commit asks for permission. Fine for the interactive phases; tedious during the build loop. |
+| **Plan mode** | ❌ not compatible | Plan mode blocks Write/Edit, so even `/harness-interview` can't write `context.md`. It is also redundant — the harness has its own planning phases (interview → architecture → plan). Don't wrap the harness in Plan mode. |
+
+In short: run the interactive phases in any mode you like; run `/harness-work` in **normal/accept-edits**.
+
 ### Install
 
 Add the plugin to Claude Code from a marketplace, or for local/dev use symlink it into your user skills dir and restart `claude`:
@@ -156,10 +168,22 @@ All per-run files live under `state/runs/<run-id>/`. A top-level `state/CURRENT`
 
 - One-line fixes, throwaway scripts, exploration. The ceremony costs more than it saves — use a plain agent.
 
+## What uses Python (and why)
+
+The harness is almost entirely prompt-driven (skills + agents). Python appears in exactly three places, all **stdlib-only** — no packages to install beyond Python 3 itself:
+
+| Where | What | Why Python, not a prompt |
+|---|---|---|
+| `orchestrator/resolver.py` | Deterministic dependency ordering of plan tasks (topological sort) + cycle / unknown-dep / duplicate-id detection. | Ordering is the one place a silent LLM mistake — running a task before its dependency exists — corrupts a whole run. Code makes it deterministic and unit-testable; the model can't "mis-order" it. The coordinator calls it via `$CLAUDE_PLUGIN_ROOT`, with an in-prompt fallback if it can't be located. |
+| `hooks/pre-tool-use.sh` and `post-tool-use.sh` | A one-line `python3 -c` parses the hook event JSON and builds the change-log line. | Parsing/serializing JSON in pure bash is fragile; a file path containing a quote or backslash would corrupt the log. `python3`'s stdlib `json` does it safely. |
+| `tests/test_resolver.py` | pytest unit tests for the resolver. | The resolver is the only component with real logic, so it's the only thing worth a test suite. |
+
+Everything else — the 8 phases, the coordinator loop, the role agents — is plain prompting over file-based state. So `python3` is a runtime requirement (for the resolver and the hooks), but the harness ships **no third-party Python dependencies**.
+
 ## Requirements
 
 - Claude Code (any plan).
-- Python 3 (only for `orchestrator/resolver.py`; stdlib only).
+- Python 3 with the standard library (used by `orchestrator/resolver.py` and the hooks; no third-party packages). pytest only for running the resolver tests.
 - Your target project must provide its own test / lint / type-check commands; the interviewer captures them into `context.md` and the worker/auditor run them.
 
 ## Development
