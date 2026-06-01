@@ -147,6 +147,31 @@ The harness writes files every phase (state, then real code), so the permission 
 
 In short: run the interactive phases in any mode you like; run `/harness-work` in **normal/accept-edits**.
 
+### Permissions — avoid mid-run stalls
+
+The harness fires many tool calls (scan, tests, lint, git, the resolver). If one needs a permission you haven't granted — especially inside a subagent — the run can **hang waiting on a prompt that never gets answered**. Two ways to prevent it:
+
+1. **Run `/harness-work` (and ideally the whole pipeline) in accept-edits mode** so edits don't prompt.
+2. **Allowlist the read-only / expected commands** in the target project's `.claude/settings.json` (or your user settings). A safe starting set:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)", "Bash(cat:*)", "Bash(find:*)", "Bash(grep:*)",
+      "Bash(git status:*)", "Bash(git ls-files:*)", "Bash(git diff:*)",
+      "Bash(git log:*)", "Bash(git add:*)", "Bash(git commit:*)",
+      "Bash(python3:*)", "Bash(pytest:*)", "Bash(coverage:*)",
+      "Bash(npm test:*)", "Bash(ruff:*)", "Bash(eslint:*)", "Bash(mypy:*)"
+    ]
+  }
+}
+```
+
+Trim it to your stack. Or generate one automatically from your own usage with the `/fewer-permission-prompts` helper.
+
+If a run does stall on a prompt: press `Esc` to cancel, grant the permission (or add it above), and re-run the phase — every phase is resumable (it re-reads the run's state and skips finished work).
+
 ### Install
 
 Add the plugin to Claude Code from a marketplace, or for local/dev use symlink it into your user skills dir and restart `claude`:
