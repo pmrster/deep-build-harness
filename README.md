@@ -40,6 +40,45 @@ Add the plugin to Claude Code (from this directory or your plugin marketplace), 
 
 Follow the gate at the end of each phase. Phases 0–3 and 7–8 are interactive; `/harness-work` runs the build loop.
 
+## Quickstart
+
+Start in any folder — greenfield is fine. Use a git repo so workers can commit and the release phase can tag.
+
+```bash
+mkdir my-app && cd my-app && git init
+claude                       # the plugin loads automatically (see Install)
+```
+
+Then drive the pipeline from inside the session. You can pass your idea straight to the interview:
+
+```
+/harness-interview build a Python CLI todo app with add, list, and done commands
+```
+
+The interviewer asks until requirements are unambiguous and writes `state/context.md`. Approve it, then run each phase as it prompts you:
+
+```
+/harness-scan            # maps existing code (marks greenfield if empty) → state/codebase_map.md
+/harness-architecture    # schema + exact contracts → state/architecture.md   (you approve)
+/harness-plan            # tasks with verifiable criteria → state/plans.json   (you approve → locks)
+/harness-work            # builds each task: worker (TDD) → auditor, with rework loop
+/harness-docs            # README/CHANGELOG/API from the real code
+/harness-release         # final gate + git tag, only if every task is verified
+```
+
+Each phase reads the previous phase's file and tells you the next command. Inspect progress anytime: `cat state/plans.json`, `cat state/audit_log.json`, `git log`.
+
+To start over, delete `state/` (it is gitignored).
+
+### Local install for testing
+
+```bash
+# Symlink the plugin into your user skills dir, then restart claude:
+ln -s /path/to/claude-agents-harness ~/.claude/skills/deep-interview-harness
+# It loads next session as deep-interview-harness@skills-dir.
+# Verify with /plugin and /agents. Remove with: rm ~/.claude/skills/deep-interview-harness
+```
+
 ## How phase 4 works
 
 `/harness-work` (the coordinator) runs in your session and, **sequentially** for each task in dependency order:
