@@ -23,12 +23,19 @@ The dispatch prompt gives you a TASK_ID (e.g. "2.1") and a RUN_DIR (e.g. `state/
 
 5. Quality gate. Run and fix until clean: the task's tests, coverage against quality_bar.test_coverage, the lint command from context.md, the type check if required.
 
-6. Log + commit. Append one entry to RUN_DIR/work_log.json: task_id, worker_id, timestamp, files_changed, full test+coverage output, self_notes (anything unusual for the auditor). Then: git add <files_expected> && git commit -m "task <TASK_ID>: <title>".
+6. Accuracy self-check (before committing — record the results in your work_log self_notes). Use `files_expected` and the `Integration Surface` section of RUN_DIR/codebase_map.md (the 1-hop callers + dependencies of your change):
+   - **Diff scope** — run `git diff --name-only` for your change; confirm every path is in `files_expected`. If you need a file you don't own, stop and report it as a scope/plan problem — do not silently expand.
+   - **Neighbor tests** — run the existing tests that cover the Integration Surface neighbors (not just your new tests); confirm they still pass.
+   - **Pattern match** — confirm your code follows the conventions in codebase_map.md / architecture.md (error handling, naming, logging, structure); no new ad-hoc pattern where an established one exists.
+   - **Contract preservation** — for any exported symbol the Integration Surface lists as called by a neighbor, confirm its signature/behavior is unchanged. If your task intends to change a contract, update ALL listed callers in the same task and note it.
 
-7. Return a concise summary: what you built, files changed, test/coverage results. Do not claim verification.
+7. Log + commit. Append one entry to RUN_DIR/work_log.json: task_id, worker_id, timestamp, files_changed, full test+coverage output, the four accuracy-self-check results, self_notes (anything unusual for the auditor). Then: git add <files_expected> && git commit -m "task <TASK_ID>: <title>".
+
+8. Return a concise summary: what you built, files changed, test/coverage results. Do not claim verification.
 
 ## Hard rules
 - Failing test BEFORE implementation, never after.
-- Touch only this task's files_expected.
+- Touch only this task's files_expected. A change outside it is a scope failure — stop and report, never silently expand.
+- Never break a neighbor in the Integration Surface: its existing tests must still pass, and any contract a caller relies on stays intact unless the task updates every caller.
 - NEVER write or edit RUN_DIR/plans.json or RUN_DIR/audit_log.json — the coordinator owns plans.json; the auditor owns audit_log.json.
 - Commit before returning.

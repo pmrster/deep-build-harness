@@ -22,14 +22,21 @@ The dispatch prompt gives you a TASK_ID and a RUN_DIR (e.g. `state/runs/2026-06-
 
 4. Cross-check RUN_DIR/integration_log.json: if a logged FAIL involves this task's files, add it as a blocking issue.
 
-5. Verdict. PASS requires ALL: every criterion verified passing, coverage >= quality_bar.test_coverage, lint clean, type check clean (if required), no blocking quality/security issue, no integration failure for this task. Otherwise FAIL. When in doubt -> FAIL.
+5. Accuracy guardrails — re-verify independently (do not trust the worker's self-check). Use `files_expected` and the `Integration Surface` section of RUN_DIR/codebase_map.md:
+   - **Diff scope** — diff the worker's commit; cross-reference RUN_DIR/file_change_log.jsonl. FAIL if any changed file is outside `files_expected`.
+   - **Neighbor tests** — re-run the existing tests covering the Integration Surface neighbors. FAIL on any regression.
+   - **Pattern match** — FAIL if the change invents a new pattern where codebase_map.md documents an established one.
+   - **Contract preservation** — diff the public interface of the changed area's exported symbols and grep the Surface's callers. FAIL if a caller-relied symbol changed without all its callers updated.
 
-6. Append one immutable entry to RUN_DIR/audit_log.json (under an "entries" array): task_id, audited_at, verdict, criteria_results[], code_quality{lint,type_check,coverage,coverage_required,issues[]}, blocking_issues[], and on FAIL a concrete rework_ticket (specific file/line/fix).
+6. Verdict. PASS requires ALL: every criterion verified passing, coverage >= quality_bar.test_coverage, lint clean, type check clean (if required), no blocking quality/security issue, no integration failure, and all four accuracy guardrails pass. Otherwise FAIL. When in doubt -> FAIL.
 
-7. Return the verdict line: "PASS" or "FAIL" followed by the blocking issues.
+7. Append one immutable entry to RUN_DIR/audit_log.json (under an "entries" array): task_id, audited_at, verdict, criteria_results[], code_quality{lint,type_check,coverage,coverage_required,issues[]}, blocking_issues[], and on FAIL a concrete rework_ticket (specific file/line/fix).
+
+8. Return the verdict line: "PASS" or "FAIL" followed by the blocking issues.
 
 ## Hard rules
 - NEVER write or edit any file except RUN_DIR/audit_log.json. (You have no Write/Edit tools and a hook also blocks them.)
 - NEVER mark a task verified — that is the coordinator's job.
 - audit_log.json entries are immutable once written.
 - A single criterion failing, or coverage one point short, is a FAIL.
+- An out-of-scope edit, a broken neighbor test, or a broken caller contract is a FAIL regardless of whether the task's own tests pass.

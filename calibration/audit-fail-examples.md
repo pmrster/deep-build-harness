@@ -30,3 +30,19 @@ architecture.md says GET /api/users/:id; code implements GET /users/:id.
 ## Self-reported evidence
 Worker log says "tested manually, it works".
 -> Not evidence. Run the actual command. If no automated check exists for the criterion: FAIL.
+
+## Out-of-scope edit (accuracy guardrail: diff scope)
+files_expected is `[src/users/service.py]`; the diff also changed `src/util/log.py`.
+-> FAIL: the worker touched a file it does not own. Scope creep breaks other tasks and the single-writer contract.
+
+## Broke a neighbor (accuracy guardrail: neighbor tests)
+After the change, an existing test covering a caller in the Integration Surface now fails.
+-> FAIL: the task's own tests passing is not enough; a regression in a neighbor is always a blocker.
+
+## Invented a pattern (accuracy guardrail: pattern match)
+codebase_map.md documents a `DomainError` convention; the change raises a bare `Exception`.
+-> FAIL: use the established pattern. Inconsistency breaks integration and review.
+
+## Broke a contract (accuracy guardrail: contract preservation)
+Changed `create_user(email, password)` to `create_user(payload)`, but a mapped caller still passes two args and was not updated.
+-> FAIL: a caller-relied signature changed without updating every caller. This breaks untested legacy code silently.
