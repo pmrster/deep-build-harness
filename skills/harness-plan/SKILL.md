@@ -51,3 +51,4 @@ Set `locked: true`, `approved_at: <ISO timestamp>`. Then: "Plan locked. Run `/ha
 - Every acceptance criterion must be runnable as a command.
 - Tasks must not overlap in file ownership.
 - Do not lock without explicit approval.
+- Read `calibration/plan-examples.md` (ships at the plugin root, e.g. `$CLAUDE_PLUGIN_ROOT/calibration/`); every task and criterion must meet that GOOD bar.
