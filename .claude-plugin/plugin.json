@@ -2,5 +2,6 @@
   "name": "deep-interview-harness",
   "version": "0.1.0",
   "description": "Multi-agent expert-team harness for Claude Code. Enforces a disciplined pipeline (interview -> scan -> architecture -> plan -> work -> integration -> audit -> docs -> release) using native subagents, skills, hooks, and file-based state. Each agent is context-isolated; an independent auditor verifies every task with real command execution.",
-  "author": { "name": "pmrster" }
+  "author": { "name": "pmrster" },
+  "hooks": "./hooks/hooks.json"
 }
