@@ -35,31 +35,34 @@ Then validate its structure before dispatching anything. Run the validator shipp
 - Exit 0 → valid, continue. Exit 4 (unreadable/bad JSON) or 5 (invalid structure: missing fields, bad status, files_expected overlap, unknown dependency, bad acceptance_criteria count) → show stderr and stop; the plan must be fixed via /harness-plan before any work runs.
 - If the validator cannot be located, fall back to your own check: every task has id/title/wave/files_expected/acceptance_criteria(2-5)/quality_bar/status, statuses valid, no two tasks share a files_expected path, every depends_on names an existing task.
 
-## Order
-Order the tasks by dependency. Prefer the deterministic resolver shipped with the plugin:
-- if `$CLAUDE_PLUGIN_ROOT` is set: `python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py" RUN_DIR/plans.json`
-- else locate it under the install (e.g. `~/.claude/skills/*/orchestrator/resolver.py` or `~/.claude/plugins/**/orchestrator/resolver.py`) and run it on `RUN_DIR/plans.json`.
+## Order — compute waves
+Group tasks into dependency layers ("waves") so independent tasks in a layer can be built in parallel. Use the deterministic resolver shipped with the plugin with the `--waves` flag:
+- if `$CLAUDE_PLUGIN_ROOT` is set: `python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py" --waves RUN_DIR/plans.json`
+- else locate it under the install (e.g. `~/.claude/skills/*/orchestrator/resolver.py` or `~/.claude/plugins/**/orchestrator/resolver.py`) and run it with `--waves` on `RUN_DIR/plans.json`.
 - Non-zero exit → show stderr (cycle or unknown dependency) and stop; the plan is invalid.
-- Success → stdout is the task order, one id per line.
-- If the resolver truly cannot be located, compute the order yourself from `depends_on`: emit every task only after all its dependencies, lexicographic tie-break; if no task is ready while some remain, that is a cycle — stop.
+- Success → stdout is one wave per line, task ids space-separated, in execution order. Every task in a wave has all its dependencies satisfied by earlier waves and none on its wave-mates, so the wave is parallel-safe. (Waves are computed from `depends_on`, not the advisory `wave` field in plans.json.)
+- If the resolver truly cannot be located, compute waves yourself: wave index of a task = 1 + max wave index of its dependencies (no deps → wave 1); group by index, ascending.
 
-## Per-task loop (in resolver order; skip tasks already "verified")
+## Per-wave loop (in wave order; skip tasks already "verified")
 
-For each TASK_ID:
+Process waves in order. Within a wave, dispatch the not-yet-verified tasks **in parallel** — issue all their worker Agent calls in a single message, then all their auditor Agent calls in a single message. Worker and audit phases never overlap, so the global `state/.active_role` signal stays consistent. If your environment cannot run subagents in parallel, degrade gracefully to one task at a time — the result is identical, only slower.
 
-1. Set the task's status to "in_progress" and assigned_worker to "worker-<id>" in `RUN_DIR/plans.json` (you write this).
-2. Write `worker <RUN>` to `state/.active_role`.
-3. Dispatch the worker subagent (Agent tool, subagent_type `deep-build-harness:harness-worker`) with a prompt naming TASK_ID and RUN_DIR. Wait for its summary.
-4. Set status to "submitted".
-5. Write `auditor <RUN>` to `state/.active_role`.
-6. Dispatch the auditor subagent (subagent_type `deep-build-harness:harness-auditor`) with TASK_ID and RUN_DIR. Read its returned verdict, then read the latest matching entry in `RUN_DIR/audit_log.json` — that entry is authoritative, not the subagent's prose.
-7. Branch on the audit_log.json entry (treat a missing rework_count as 0):
-   - PASS only if the latest `RUN_DIR/audit_log.json` entry for this task has verdict "PASS": set status "verified", audit_verdict "PASS". Move to next task. (Never set "verified" without that PASS entry.)
-   - FAIL otherwise: set status "rework", append the auditor's rework_ticket to rework_notes, increment rework_count (0->1 on the first failure). If rework_count < 3: go to step 2 (re-dispatch worker, which reads rework_notes, then re-audit). When rework_count reaches 3: use AskUserQuestion to ask retry / skip / abort.
-     - retry: reset attempt and go to step 2.
-     - skip: leave status as is, continue to next task.
-     - abort: stop the run.
-8. After each task, delete `state/.active_role` (the coordinator writes plans.json itself and needs no role restriction).
+For each wave, let TASKS = its tasks whose status is not "verified". If TASKS is empty, skip to the next wave.
+
+1. For every task in TASKS: set status "in_progress" and assigned_worker "worker-<id>" in `RUN_DIR/plans.json` (you are the sole writer).
+2. Write `worker <RUN> <timestamp>` to `state/.active_role`.
+3. Dispatch one worker subagent per task **in parallel** (Agent tool, subagent_type `deep-build-harness:harness-worker`), each prompt naming its TASK_ID and the RUN_DIR. Wait for all to return. (Each worker writes only its own `RUN_DIR/work_logs/<task-id>.json`, so parallel workers never contend on a shared file.)
+4. Set every returned task's status to "submitted".
+5. Write `auditor <RUN> <timestamp>` to `state/.active_role`.
+6. Dispatch one auditor subagent per task **in parallel** (subagent_type `deep-build-harness:harness-auditor`), each with its TASK_ID and RUN_DIR. After they return, for each task read the latest matching entry in `RUN_DIR/audit_log.json` — that entry is authoritative, not the subagent's prose.
+7. For each task, branch on its audit_log.json entry (treat a missing rework_count as 0):
+   - PASS (latest entry verdict "PASS"): set status "verified", audit_verdict "PASS". (Never set "verified" without that PASS entry.)
+   - FAIL otherwise: set status "rework", append the auditor's rework_ticket to rework_notes, increment rework_count (0->1 on first failure).
+8. Rework sub-loop for the wave: while any task in the wave is "rework" with rework_count < 3, re-run steps 2–7 **for that failing subset only** (re-dispatch those workers in parallel — they read rework_notes and fix only listed blockers — then re-audit that subset). When a task's rework_count reaches 3, use AskUserQuestion to ask retry / skip / abort for it:
+   - retry: reset its attempt and keep it in the sub-loop.
+   - skip: leave its status as is, drop it from the sub-loop.
+   - abort: clear `state/.active_role` and stop the whole run.
+9. After the wave settles, delete `state/.active_role`. **Gate before the next wave:** if any task in this wave is not "verified" (skipped/aborted), do NOT start later waves that depend on it — stop and report which tasks blocked, since dependents cannot be built on an unverified base.
 
 ## After all tasks
 If every task is "verified":

@@ -59,21 +59,22 @@ Each phase writes one file; the next reads it. Agents never share memory — **f
 
 ### Phase 4 — the coordinator
 
-`/harness-work` runs in your session and, **sequentially** for each task in dependency order:
+`/harness-work` runs in your session and, per dependency wave:
 
-1. orders tasks with `orchestrator/resolver.py` (deterministic; stops on cycles / unknown deps),
-2. dispatches a **worker** subagent (TDD, implements one task, commits, writes `work_log.json`),
-3. dispatches an **auditor** subagent (re-runs every acceptance criterion itself, writes `audit_log.json`),
-4. on FAIL runs a **rework loop** (max 3 attempts, then asks you: retry / skip / abort),
-5. when all tasks are verified, runs an **integration** subagent end-to-end.
+1. groups tasks into waves with `orchestrator/resolver.py --waves` (deterministic; stops on cycles / unknown deps),
+2. within each wave, dispatches **worker** subagents **in parallel** (one per task; each writes its own `work_logs/<task-id>.json`, so no shared-log contention),
+3. once all wave workers return, dispatches **auditor** subagents **in parallel** (re-runs every acceptance criterion itself, writes `audit_log.json`),
+4. on FAIL runs a **rework loop** (max 3 attempts per task, then asks you: retry / skip / abort),
+5. gates the next wave: if any task in a wave is not verified, dependent waves are blocked,
+6. when all tasks are verified, runs an **integration** subagent end-to-end.
 
-The coordinator is the **sole writer of `plans.json`**. Workers and the auditor write only their own append-only logs and return results. Runs are **resumable** — re-running skips already-verified tasks.
+The coordinator is the **sole writer of `plans.json`**. Workers and the auditor write only their own logs and return results. Runs are **resumable** — re-running skips already-verified tasks.
 
 ### Roles and permissions
 
 | Agent | Color | Can write | Purpose |
 |---|---|---|---|
-| worker | blue | source, `work_log.json`, commits | implement one task with TDD |
+| worker | blue | source, `work_logs/<task-id>.json`, commits | implement one task with TDD |
 | auditor | purple | `audit_log.json` only | independently verify; **no Write/Edit** |
 | integration | cyan | `integration_log.json` only | end-to-end flows; **no Write/Edit** |
 
@@ -196,7 +197,7 @@ All per-run files live under `state/runs/<run-id>/`. A top-level `state/CURRENT`
 | `codebase_map.md` | scanner | |
 | `architecture.md` | architect | locked after your approval |
 | `plans.json` | coordinator | run-state; `locked: true` after you approve the plan |
-| `work_log.json` | workers | append-only |
+| `work_logs/<task-id>.json` | workers (one file per task) | written once per task; parallel-safe |
 | `audit_log.json` | auditor | append-only, immutable entries |
 | `integration_log.json` | integration | per run |
 | `file_change_log.jsonl` | post-tool hook | append-only |

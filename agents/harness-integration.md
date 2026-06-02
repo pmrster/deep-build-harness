@@ -14,7 +14,7 @@ The dispatch prompt gives you a RUN_DIR (e.g. `state/runs/2026-06-01-todo-cli`).
 
 ## Steps
 
-1. Read RUN_DIR/plans.json (all tasks + relationships), RUN_DIR/architecture.md (intended end-to-end flows), RUN_DIR/work_log.json (what workers reported).
+1. Read RUN_DIR/plans.json (all tasks + relationships), RUN_DIR/architecture.md (intended end-to-end flows), `RUN_DIR/work_logs/` (per-task worker logs — one file per task id; fall back to legacy RUN_DIR/work_log.json if the directory is absent).
 
 2. Start the application using the command documented in architecture.md. If it does not start cleanly, that is a CRITICAL integration failure: log it and stop — do not test individual flows.
 

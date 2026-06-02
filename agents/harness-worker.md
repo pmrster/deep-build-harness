@@ -29,7 +29,7 @@ The dispatch prompt gives you a TASK_ID (e.g. "2.1") and a RUN_DIR (e.g. `state/
    - **Pattern match** — confirm your code follows the conventions in codebase_map.md / architecture.md (error handling, naming, logging, structure); no new ad-hoc pattern where an established one exists.
    - **Contract preservation** — for any exported symbol the Integration Surface lists as called by a neighbor, confirm its signature/behavior is unchanged. If your task intends to change a contract, update ALL listed callers in the same task and note it.
 
-7. Log + commit. Append one entry to RUN_DIR/work_log.json: task_id, worker_id, timestamp, files_changed, full test+coverage output, the four accuracy-self-check results, self_notes (anything unusual for the auditor). Then: git add <files_expected> && git commit -m "task <TASK_ID>: <title>".
+7. Log + commit. Write your entry to `RUN_DIR/work_logs/<TASK_ID>.json` (create the `work_logs/` dir if absent): task_id, worker_id, timestamp, files_changed, full test+coverage output, the four accuracy-self-check results, self_notes (anything unusual for the auditor). One file per task — this is intentional so parallel workers in the same wave never contend on a shared log. Then: git add <files_expected> && git commit -m "task <TASK_ID>: <title>".
 
 8. Return a concise summary: what you built, files changed, test/coverage results. Do not claim verification.
 

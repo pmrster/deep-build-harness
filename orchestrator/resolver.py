@@ -57,19 +57,46 @@ def resolve(plans: dict) -> list:
     return resolved
 
 
+def waves(plans: dict) -> list:
+    """Return tasks grouped into dependency layers for parallel dispatch.
+
+    Layer index = length of the longest dependency path to the task. All tasks
+    in one returned wave have every dependency satisfied by earlier waves and
+    none on each other, so they are safe to dispatch in parallel. Ids are sorted
+    within each wave for determinism. Raises CycleError / UnknownDependencyError
+    / DuplicateTaskIdError on bad input (validated via resolve()).
+    """
+    order = resolve(plans)  # also raises on cycle / unknown dep / dup id
+    tasks = plans.get("tasks", [])
+    deps = {t["id"]: list(t.get("depends_on", []) or []) for t in tasks}
+    level = {}
+    for tid in order:  # topological order guarantees deps are seen first
+        level[tid] = 1 + max((level[d] for d in deps[tid]), default=-1)
+    layers = {}
+    for tid, lvl in level.items():
+        layers.setdefault(lvl, []).append(tid)
+    return [sorted(layers[lvl]) for lvl in sorted(layers)]
+
+
 def main(argv: list) -> int:
-    if len(argv) != 2:
-        print("usage: resolver.py <plans.json>", file=sys.stderr)
+    want_waves = "--waves" in argv[1:]
+    args = [a for a in argv[1:] if a != "--waves"]
+    if len(args) != 1:
+        print("usage: resolver.py [--waves] <plans.json>", file=sys.stderr)
         return 4
     try:
-        with open(argv[1]) as fh:
+        with open(args[0]) as fh:
             plans = json.load(fh)
     except (OSError, json.JSONDecodeError) as e:
         print(f"cannot read plans: {e}", file=sys.stderr)
         return 4
     try:
-        for tid in resolve(plans):
-            print(tid)
+        if want_waves:
+            for wave in waves(plans):
+                print(" ".join(wave))
+        else:
+            for tid in resolve(plans):
+                print(tid)
     except CycleError as e:
         print(str(e), file=sys.stderr)
         return 2

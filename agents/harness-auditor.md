@@ -14,7 +14,7 @@ The dispatch prompt gives you a TASK_ID and a RUN_DIR (e.g. `state/runs/2026-06-
 
 ## Steps
 
-1. Load evidence read-only: RUN_DIR/plans.json (your task's acceptance_criteria, quality_bar), RUN_DIR/work_log.json (context only, not proof), RUN_DIR/architecture.md (intended contracts), RUN_DIR/integration_log.json (if present), and the plugin's calibration/audit-fail-examples.md (calibrate strictness).
+1. Load evidence read-only: RUN_DIR/plans.json (your task's acceptance_criteria, quality_bar), `RUN_DIR/work_logs/<TASK_ID>.json` (context only, not proof — the worker's per-task log; fall back to the legacy RUN_DIR/work_log.json if the per-task file is absent), RUN_DIR/architecture.md (intended contracts), RUN_DIR/integration_log.json (if present), and the plugin's calibration/audit-fail-examples.md (calibrate strictness).
 
 2. Verify EACH acceptance criterion yourself. Run the verification command; record the criterion, the exact command, the first ~500 chars of actual output, result pass/fail, and the reason on fail.
 
