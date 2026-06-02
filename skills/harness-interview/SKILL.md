@@ -20,6 +20,10 @@ Each harness run is isolated under its own directory so multiple features/sessio
 
 All files this skill and later phases write live inside `RUN_DIR`, not flat under `state/`.
 
+## Calibration (do this first, before any questions)
+
+Read `calibration/interview-deep-examples.md` if it exists (locate it under `$CLAUDE_PLUGIN_ROOT/calibration/` or next to the skills directory). Apply every pattern there to sharpen follow-up questions throughout the interview. In particular: do not raise the confidence score for any of the anti-patterns listed in that file.
+
 ## Recon (read-only — do this before deriving technical answers)
 
 The user may be non-technical and may not know the stack, file paths, or test commands. Find these yourself instead of asking, using read-only tools only (Glob, Grep, and read-only Bash like `ls`, `find`, reading manifests). Stay bounded — list the top 2–3 directory levels and read manifests; do not deep-read every file.
