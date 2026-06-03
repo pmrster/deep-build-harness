@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Multi-agent expert-team harness for Claude Code. Enforces a disciplined pipeline using native subagents, skills, hooks, and file-based state.",
-    "version": "0.1.8"
+    "version": "0.1.9"
   },
   "plugins": [
     {
       "name": "deep-build-harness",
       "source": "./",
       "description": "Multi-agent expert-team harness for Claude Code. Enforces a disciplined pipeline (interview → scan → architecture → plan → work → integration → audit → docs → release) using native subagents, skills, hooks, and file-based state. Each agent is context-isolated; an independent auditor verifies every task with real command execution.",
-      "version": "0.1.8",
+      "version": "0.1.9",
       "author": {
         "name": "pmrster"
       },
