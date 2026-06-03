@@ -24,6 +24,11 @@ ALLOW = [
     # the read-only roles' own logs — they have no Write/Edit tool, so Bash append is legit
     "echo '{}' >> state/runs/r1/audit_log.json",
     "cat entry.json >> state/runs/r1/integration_log.json",
+    # capturing command output to system temp is scratch, not a working-tree write
+    "pnpm check > /tmp/check_out.txt",
+    "pnpm test > /tmp/test_out.txt 2>&1",
+    "pytest >> /var/tmp/out.txt",
+    "cmd > /private/tmp/scratch",
 ]
 
 # Commands that mutate the working tree — must be BLOCKED for read-only roles.
@@ -53,6 +58,9 @@ BLOCK = [
     # a real write AFTER a quoted-separator string must still be caught
     'echo "safe; text" ; rm src/foo.py',
     'echo "a | b"; git commit -m "msg; semi"',
+    # a temp prefix must not be a traversal escape hatch to the real tree
+    "echo x > /tmp/../etc/passwd",
+    "echo x > /var/folders/../../etc/hosts",
 ]
 
 

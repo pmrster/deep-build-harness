@@ -20,6 +20,7 @@ sandbox. It raises the bar from honor-system to "no common write slips through".
 Usage (CLI): printf '%s' "<command>" | python3 orchestrator/bash_guard.py
 Exit 0 = read-only (allow), 2 = writes (block, reason on stderr).
 """
+import os
 import re
 import shlex
 import sys
@@ -138,9 +139,23 @@ def _strip_heredoc_bodies(command):
 # no Write/Edit tool, so they must use Bash for their own log). Allow writes here.
 ALLOWED_WRITE_TARGETS = ("audit_log.json", "integration_log.json")
 
+# System temp dirs. Auditors routinely capture command output (`pnpm test >
+# /tmp/out.txt`) to scratch — that is not a working-tree mutation, so allow it.
+# Covers /tmp, macOS $TMPDIR (/var/folders/...), and an explicit $TMPDIR. A later
+# command that writes source FROM such a file is still inspected and blocked on
+# its own, so this does not open a path to editing the tree.
+_TMP_PREFIXES = tuple(
+    p.rstrip("/") + "/" for p in {"/tmp", "/var/tmp", "/private/tmp",
+                                  "/var/folders", "/private/var/folders",
+                                  os.environ.get("TMPDIR", "").rstrip("/") or "/tmp"}
+)
+
 
 def _target_allowed(target):
-    return target == "/dev/null" or any(target.endswith(t) for t in ALLOWED_WRITE_TARGETS)
+    if target == "/dev/null" or any(target.endswith(t) for t in ALLOWED_WRITE_TARGETS):
+        return True
+    # normalize so `/tmp/../etc/passwd` can't masquerade as a temp scratch write
+    return os.path.normpath(target).startswith(_TMP_PREFIXES)
 
 
 def _segment_writes(seg):
