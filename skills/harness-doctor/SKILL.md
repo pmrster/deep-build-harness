@@ -22,26 +22,20 @@ Check `hooks/hooks.json` exists and is valid JSON (locate via `$CLAUDE_PLUGIN_RO
 ✗ list which are missing or not executable.
 
 ### 3. Resolver
-Locate the resolver using this priority order:
-1. `$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py` (if env var is set)
-2. `orchestrator/resolver.py` relative to CWD (local dev / per-project install)
-3. Search plugin cache: `find ~/.claude/plugins/cache -name "resolver.py" -path "*/orchestrator/*" 2>/dev/null | head -1`
-
-Run whichever path resolves first:
+Run this exact bash command — it finds the resolver wherever the plugin is installed:
 ```bash
-python3 "<resolved-path>" 2>&1 | head -1
+RESOLVER=$(find ~/.claude/plugins/cache -name "resolver.py" -path "*/orchestrator/*" 2>/dev/null | head -1); [ -z "$RESOLVER" ] && RESOLVER="orchestrator/resolver.py"; python3 "$RESOLVER" 2>&1 | head -1; echo "RESOLVER_PATH=$RESOLVER"
 ```
-✓ if prints the usage line (exit 4 is expected with no args — that means it ran).
-✗ if all three locations fail — report each path tried.
+✓ if output contains the usage line (exit 4 is expected with no args).
+✗ if "No such file" or import error — report the RESOLVER_PATH value.
 
 ### 4. Validator
-Locate same way (priority: `$CLAUDE_PLUGIN_ROOT`, CWD, cache find), substituting `validate_plans.py`:
+Run this exact bash command:
 ```bash
-find ~/.claude/plugins/cache -name "validate_plans.py" -path "*/orchestrator/*" 2>/dev/null | head -1
+VALIDATOR=$(find ~/.claude/plugins/cache -name "validate_plans.py" -path "*/orchestrator/*" 2>/dev/null | head -1); [ -z "$VALIDATOR" ] && VALIDATOR="orchestrator/validate_plans.py"; python3 "$VALIDATOR" 2>&1 | head -1; echo "VALIDATOR_PATH=$VALIDATOR"
 ```
-Run whichever resolves first.
 ✓ usage line, exit 4 is expected.
-✗ report each path tried if all fail.
+✗ if "No such file" — report the VALIDATOR_PATH value.
 
 ### 5. state/ directory
 Check `state/` exists. If not: create it with `mkdir -p state/`.
@@ -50,7 +44,7 @@ Check `state/` exists. If not: create it with `mkdir -p state/`.
 ### 6. Stale active_role
 Check `state/.active_role`:
 - Not present → ✓ "No stale role."
-- Present → locate `active_role.py` using the same 3-step priority as checks 3–4 (env var → CWD → cache find), then run `python3 "<resolved>" state/.active_role`. Or just read the file directly (`<role> <run> <timestamp>`) — the format is simple enough to parse without the script.
+- Present → read the file directly (`<role> <run> <timestamp>`) — no script needed.
   - If age < 5 minutes AND a `/harness-work` run seems actively in progress → ✓ "Active role in use (recent)."
   - Otherwise → ✗ "Stale active role detected: `<content>` (age: <X>m). This blocks all Write/Edit operations."
     Use AskUserQuestion: "Clear the stale active role?" (Yes / No).
