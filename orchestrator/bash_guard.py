@@ -43,6 +43,43 @@ _SEGMENT_SPLIT = re.compile(r"&&|\|\||\||;|\n")
 _REDIR = re.compile(r"(?<![0-9&])>>?(?![&])\s*([^\s;|&<>]+)")
 # A heredoc opener: <<DELIM, <<-DELIM, <<'DELIM', <<"DELIM".
 _HEREDOC = re.compile(r"<<-?\s*([\"']?)([A-Za-z_][A-Za-z0-9_]*)\1")
+# An interpreter invoked with inline code: python3 -c "...", node -e '...', etc.
+# The quoted code that follows is foreign syntax (its own quotes, ;, |) and must
+# not be parsed as shell. Matches up to (and including) the opening quote.
+_INTERP_CODE = re.compile(
+    r"\b(?:python3?|node|perl|ruby|deno|bun|bash|sh|zsh)\b[^\n;|&]*?\s-(?:c|e)\s+(['\"])"
+)
+
+
+def _strip_interpreter_code(command):
+    """Replace an interpreter's inline code argument (`python3 -c "..."`, `node -e
+    '...'`) with a placeholder, so its embedded quotes/;/| are never parsed as
+    shell. Read-only roles routinely parse JSON with `... | python3 -c "..."`;
+    without this the segment splitter cuts the code mid-string and shlex then
+    fails on the fragment, wrongly blocking a pure read. The interpreter NAME and
+    surrounding shell are preserved, so a real redirect after the code (e.g.
+    `python3 -c "..." > src.py`) is still seen and judged on its own."""
+    out = []
+    pos = 0
+    while True:
+        m = _INTERP_CODE.search(command, pos)
+        if not m:
+            out.append(command[pos:])
+            break
+        quote = m.group(1)
+        # walk from just after the opening quote to its matching unescaped close
+        j = m.end()
+        while j < len(command):
+            if command[j] == "\\":
+                j += 2
+                continue
+            if command[j] == quote:
+                break
+            j += 1
+        out.append(command[pos:m.end() - 1])  # up to and including code start (sans quote)
+        out.append("CODE")                      # opaque placeholder for the code body
+        pos = j + 1 if j < len(command) else len(command)
+    return "".join(out)
 
 
 def _strip_heredoc_bodies(command):
@@ -119,6 +156,7 @@ def is_write_command(command):
     if not command or not command.strip():
         return False, ""
     command = _strip_heredoc_bodies(command)
+    command = _strip_interpreter_code(command)
     for seg in _SEGMENT_SPLIT.split(command):
         reason = _segment_writes(seg)
         if reason:
