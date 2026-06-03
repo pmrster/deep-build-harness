@@ -100,16 +100,62 @@ With this approach, hooks use `${CLAUDE_PLUGIN_ROOT}` which Claude Code sets to 
 
 Each run is isolated under `state/runs/<run-id>/` (referred to as **RUN_DIR**), so multiple features or sessions in one repo never collide.
 
-```
-/harness-interview     Phase 0  → RUN_DIR/context.md              interview until unambiguous (creates the run)
-/harness-scan          Phase 1  → RUN_DIR/codebase_map.md         map existing code first
-/harness-architecture  Phase 2  → RUN_DIR/architecture.md         schema + exact API contracts
-/harness-plan          Phase 3  → RUN_DIR/plans.json              tasks with machine-verifiable AC
-/harness-work          Phase 4  → coordinator drives build per task (worker → auditor)
-                       Phase 5  → RUN_DIR/integration_log.json    end-to-end across tasks
-                       Phase 6  → RUN_DIR/audit_log.json          independent verdict per task
-/harness-docs          Phase 7  → README / CHANGELOG / docs
-/harness-release       Phase 8  → RUN_DIR/release_proof/ + git tag (only if all verified)
+```text
+                                  ┌──────────────┐
+                                  │  USER: goal  │
+                                  └──────┬───────┘
+                                         ▼
+┌─ PHASES 0–3 · interactive — you approve each gate ─────────── writes ────────────┐
+│                                                                                   │
+│  Phase 0  /harness-interview ─────────────────────────────▶  context.md          │
+│              └─gate─ confidence ≥ 80 AND unknowns = 0 ? ──no──▶ keep interviewing │
+│                                         │ approve                                 │
+│  Phase 1  /harness-scan ──────────────────────────────────▶  codebase_map.md     │
+│                                         │                                         │
+│  Phase 2  /harness-architecture ──────────────────────────▶  architecture.md     │
+│              └─gate─ approve ? ──no──▶ revise                                      │
+│                                         │ approve                                 │
+│  Phase 3  /harness-plan ──────────────────────────────────▶  plans.json          │
+│              └─gate─ approve ? ──no──▶ revise                                      │
+│                                         │ approve  →  plans.json LOCKED            │
+└─────────────────────────────────────────│─────────────────────────────────────────┘
+                                           ▼
+┌─ PHASE 4 · /harness-work coordinator — automated build loop ──────────────────────┐
+│                                                                                   │
+│   resolver.py --waves  ──▶  order tasks into dependency waves                      │
+│                                         │                                         │
+│        ┌────────────────────────────────▼─────────────────────────────────┐      │
+│        │  per wave:                                                         │      │
+│        │   WORKERS  (parallel · 1 task each · TDD)                          │      │
+│        │     write: source + work_logs/<task-id>.json + commits            │      │
+│        │        │                                                          │      │
+│        │        ▼                                                          │      │
+│        │   AUDITORS (parallel · independent · NO Write/Edit)                │      │
+│        │     re-run every acceptance criterion ─▶ audit_log.json           │      │
+│        │        │                                                          │      │
+│        │        ▼                                                          │      │
+│        │   verdict ?                                                       │      │
+│        │     ├─ FAIL ─▶ rework loop ── attempt < 3 ──▶ back to WORKERS      │      │
+│        │     │                         attempt = 3 ──▶ [HITL] AskUserQ:     │      │
+│        │     │                            retry / skip / abort              │      │
+│        │     └─ verified ─▶ more waves? ──yes (deps gate next wave)──┐      │      │
+│        └────────────────────────────────────────────────────────────┘      │      │
+│                                          │ no more waves                    │      │
+└──────────────────────────────────────────│────────────────────────────────────────┘
+                                           ▼
+   Phase 5  integration  ── end-to-end across tasks ──▶  integration_log.json
+                                           │
+                                           ▼
+   Phase 7  /harness-docs  ── from real code ──▶  README / CHANGELOG / API docs
+                                           │
+                                           ▼
+                          final gate: ALL tasks verified ? ──no──▶ rework loop
+                                           │ yes
+                                           ▼
+   Phase 8  /harness-release  ──▶  release_proof/ + git tag  ──▶  SHIPPED
+
+   Legend:  gate = decision you approve   ·   HITL = human-in-the-loop prompt
+            arrows show the one file each phase writes for the next to read
 ```
 
 Each phase writes one file; the next reads it. Agents never share memory — **files are the only channel.** Phases 0–3 and 7–8 are interactive skills you approve at a gate; phase 4 is the automated build loop.
