@@ -22,20 +22,26 @@ Check `hooks/hooks.json` exists and is valid JSON (locate via `$CLAUDE_PLUGIN_RO
 ✗ list which are missing or not executable.
 
 ### 3. Resolver
-Locate the resolver: if `$CLAUDE_PLUGIN_ROOT` is set use `$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py`; else fall back to `orchestrator/resolver.py` (local dev). Then:
+Locate the resolver using this priority order:
+1. `$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py` (if env var is set)
+2. `orchestrator/resolver.py` relative to CWD (local dev / per-project install)
+3. Search plugin cache: `find ~/.claude/plugins/cache -name "resolver.py" -path "*/orchestrator/*" 2>/dev/null | head -1`
+
+Run whichever path resolves first:
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py" 2>&1 | head -1
+python3 "<resolved-path>" 2>&1 | head -1
 ```
 ✓ if prints the usage line (exit 4 is expected with no args — that means it ran).
-✗ if file not found or import error — report the resolved path that was tried.
+✗ if all three locations fail — report each path tried.
 
 ### 4. Validator
-Locate same way: `$CLAUDE_PLUGIN_ROOT/orchestrator/validate_plans.py` or fallback `orchestrator/validate_plans.py`. Then:
+Locate same way (priority: `$CLAUDE_PLUGIN_ROOT`, CWD, cache find), substituting `validate_plans.py`:
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/validate_plans.py" 2>&1 | head -1
+find ~/.claude/plugins/cache -name "validate_plans.py" -path "*/orchestrator/*" 2>/dev/null | head -1
 ```
-✓ same — usage line, exit 4 is expected.
-✗ if file not found or import error — report the resolved path that was tried.
+Run whichever resolves first.
+✓ usage line, exit 4 is expected.
+✗ report each path tried if all fail.
 
 ### 5. state/ directory
 Check `state/` exists. If not: create it with `mkdir -p state/`.
@@ -44,7 +50,7 @@ Check `state/` exists. If not: create it with `mkdir -p state/`.
 ### 6. Stale active_role
 Check `state/.active_role`:
 - Not present → ✓ "No stale role."
-- Present → read it with `python3 "${CLAUDE_PLUGIN_ROOT}/orchestrator/active_role.py" state/.active_role` (locate via `$CLAUDE_PLUGIN_ROOT` same as checks 3–4; or read the file directly: `<role> <run> <timestamp>`).
+- Present → locate `active_role.py` using the same 3-step priority as checks 3–4 (env var → CWD → cache find), then run `python3 "<resolved>" state/.active_role`. Or just read the file directly (`<role> <run> <timestamp>`) — the format is simple enough to parse without the script.
   - If age < 5 minutes AND a `/harness-work` run seems actively in progress → ✓ "Active role in use (recent)."
   - Otherwise → ✗ "Stale active role detected: `<content>` (age: <X>m). This blocks all Write/Edit operations."
     Use AskUserQuestion: "Clear the stale active role?" (Yes / No).

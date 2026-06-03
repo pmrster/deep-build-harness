@@ -31,14 +31,16 @@ Load `RUN_DIR/plans.json`. If it does not exist or `locked` is not true, tell th
 
 Then validate its structure before dispatching anything. Run the validator shipped with the plugin:
 - if `$CLAUDE_PLUGIN_ROOT` is set: `python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/validate_plans.py" RUN_DIR/plans.json`
-- else locate it next to the resolver under the install and run it on `RUN_DIR/plans.json`.
+- else search the plugin cache: `find ~/.claude/plugins/cache -name "validate_plans.py" -path "*/orchestrator/*" 2>/dev/null | head -1` — use that path with `RUN_DIR/plans.json`
+- else try `orchestrator/validate_plans.py` relative to CWD (local dev install).
 - Exit 0 → valid, continue. Exit 4 (unreadable/bad JSON) or 5 (invalid structure: missing fields, bad status, files_expected overlap, unknown dependency, bad acceptance_criteria count) → show stderr and stop; the plan must be fixed via /harness-plan before any work runs.
 - If the validator cannot be located, fall back to your own check: every task has id/title/wave/files_expected/acceptance_criteria(2-5)/quality_bar/status, statuses valid, no two tasks share a files_expected path, every depends_on names an existing task.
 
 ## Order — compute waves
 Group tasks into dependency layers ("waves") so independent tasks in a layer can be built in parallel. Use the deterministic resolver shipped with the plugin with the `--waves` flag:
 - if `$CLAUDE_PLUGIN_ROOT` is set: `python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py" --waves RUN_DIR/plans.json`
-- else locate it under the install (e.g. `~/.claude/skills/*/orchestrator/resolver.py` or `~/.claude/plugins/**/orchestrator/resolver.py`) and run it with `--waves` on `RUN_DIR/plans.json`.
+- else search the plugin cache: `find ~/.claude/plugins/cache -name "resolver.py" -path "*/orchestrator/*" 2>/dev/null | head -1` — use that path with `--waves RUN_DIR/plans.json`
+- else try `orchestrator/resolver.py` relative to CWD (local dev install).
 - Non-zero exit → show stderr (cycle or unknown dependency) and stop; the plan is invalid.
 - Success → stdout is one wave per line, task ids space-separated, in execution order. Every task in a wave has all its dependencies satisfied by earlier waves and none on its wave-mates, so the wave is parallel-safe. (Waves are computed from `depends_on`, not the advisory `wave` field in plans.json.)
 - If the resolver truly cannot be located, compute waves yourself: wave index of a task = 1 + max wave index of its dependencies (no deps → wave 1); group by index, ascending.
