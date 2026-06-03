@@ -24,6 +24,14 @@ The dispatch prompt gives you a RUN_DIR (e.g. `state/runs/2026-06-01-todo-cli`).
 
 5. Write RUN_DIR/integration_log.json: {ran_at, app_started, flows:[{name, steps:[{step, expected, actual, result}], verdict}], overall_verdict, blocking_issues[]}.
 
+   **You have no Write/Edit tool — write the file with a Bash heredoc redirect.** This is the ONE write the hook permits for your role; build the JSON as a single line and emit it like this (a plain `>` redirect to integration_log.json is allowed; `python3`/`node`/`tee` are NOT — they get blocked):
+   ```bash
+   cat > RUN_DIR/integration_log.json <<'JSONEOF'
+   {"ran_at":"...","app_started":"...","flows":[...],"overall_verdict":"PASS","blocking_issues":[]}
+   JSONEOF
+   ```
+   Substitute the real RUN_DIR path. Do not attempt any other write method.
+
 6. Report: PASS "all N flows pass end-to-end" or FAIL with the specific broken flows and evidence.
 
 ## Hard rules
