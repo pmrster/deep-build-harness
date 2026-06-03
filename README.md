@@ -290,6 +290,12 @@ Add examples to `calibration/audit-fail-examples.md` and `calibration/interview-
 
 ---
 
+## Example output
+
+[`examples/todo-cli/`](examples/todo-cli/) shows a complete run on a toy Python CLI project — the interview output ([`context.md`](examples/todo-cli/context.md)), the locked plan ([`plans.json`](examples/todo-cli/plans.json)), and the auditor's verdict for each task ([`audit_log.json`](examples/todo-cli/audit_log.json)). Real runs live under `state/runs/<run-id>/` and are gitignored.
+
+---
+
 ## Development
 
 ```bash

@@ -1,0 +1,81 @@
+{
+  "locked": true,
+  "approved_at": "2026-06-01T09:31:05Z",
+  "tasks": [
+    {
+      "id": "1.1",
+      "title": "Storage layer",
+      "description": "TodoStorage class: load/save ~/.todo.json, add(text)->Task, list()->List[Task], done(id)->bool. Pure Python stdlib, no I/O side effects in __init__.",
+      "wave": 1,
+      "depends_on": [],
+      "files_expected": ["todo/__init__.py", "todo/storage.py", "tests/test_storage.py"],
+      "acceptance_criteria": [
+        "pytest tests/test_storage.py -q exits 0",
+        "mypy todo/storage.py --strict exits 0",
+        "ruff check todo/storage.py exits 0",
+        "python3 -c \"from todo.storage import TodoStorage; s=TodoStorage('/tmp/t.json'); s.add('x'); assert s.list()[0].text=='x'\" exits 0"
+      ],
+      "quality_bar": {
+        "test_coverage": 90,
+        "no_lint_errors": true,
+        "no_type_errors": true,
+        "max_function_lines": 30
+      },
+      "status": "verified",
+      "assigned_worker": "worker-1.1",
+      "rework_count": 0,
+      "rework_notes": [],
+      "audit_verdict": "PASS"
+    },
+    {
+      "id": "1.2",
+      "title": "CLI entry point",
+      "description": "Click CLI with add/list/done subcommands. Reads/writes storage at ~/.todo.json. Output format per context.md. done <id> exits 1 with message on unknown id.",
+      "wave": 2,
+      "depends_on": ["1.1"],
+      "files_expected": ["todo/cli.py", "pyproject.toml", "tests/test_cli.py"],
+      "acceptance_criteria": [
+        "pytest tests/test_cli.py -q exits 0",
+        "mypy todo/cli.py --strict exits 0",
+        "ruff check todo/cli.py exits 0",
+        "python3 -m todo.cli add 'smoke test' exits 0",
+        "python3 -m todo.cli done 999 exits 1"
+      ],
+      "quality_bar": {
+        "test_coverage": 85,
+        "no_lint_errors": true,
+        "no_type_errors": true,
+        "max_function_lines": 25
+      },
+      "status": "verified",
+      "assigned_worker": "worker-1.2",
+      "rework_count": 0,
+      "rework_notes": [],
+      "audit_verdict": "PASS"
+    },
+    {
+      "id": "1.3",
+      "title": "End-to-end CLI integration tests",
+      "description": "Subprocess-level tests invoking the installed `todo` command. Cover the full add→list→done flow, idempotent done, unknown-id error, and empty-list output. Uses tmp_path fixture so ~/.todo.json is never touched.",
+      "wave": 3,
+      "depends_on": ["1.1", "1.2"],
+      "files_expected": ["tests/test_e2e.py"],
+      "acceptance_criteria": [
+        "pytest tests/test_e2e.py -q exits 0",
+        "ruff check tests/test_e2e.py exits 0",
+        "pytest tests/ --cov=todo --cov-report=term-missing --cov-fail-under=88 exits 0"
+      ],
+      "quality_bar": {
+        "test_coverage": 88,
+        "no_lint_errors": true,
+        "no_type_errors": false,
+        "max_function_lines": 40
+      },
+      "status": "verified",
+      "assigned_worker": "worker-1.3",
+      "rework_count": 0,
+      "rework_notes": [],
+      "audit_verdict": "PASS"
+    }
+  ]
+}
