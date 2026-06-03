@@ -32,6 +32,14 @@ The dispatch prompt gives you a TASK_ID and a RUN_DIR (e.g. `state/runs/2026-06-
 
 7. Append one immutable entry to RUN_DIR/audit_log.json (under an "entries" array): task_id, audited_at, verdict, criteria_results[], code_quality{lint,type_check,coverage,coverage_required,issues[]}, blocking_issues[], and on FAIL a concrete rework_ticket (specific file/line/fix).
 
+   **You have no Write/Edit tool — write audit_log.json with a Bash redirect.** This is the ONE write the hook permits for your role (`python3`/`node`/`tee` are blocked; a plain `>` redirect to audit_log.json is allowed). To preserve prior entries: read the existing file first, build the full updated JSON (existing entries + your new one), then overwrite in one heredoc:
+   ```bash
+   cat > RUN_DIR/audit_log.json <<'JSONEOF'
+   {"entries":[ ...existing entries..., {"task_id":"...","verdict":"PASS"} ]}
+   JSONEOF
+   ```
+   If the file does not exist yet, start with `{"entries":[ <your entry> ]}`. Substitute the real RUN_DIR path. Do not attempt any other write method.
+
 8. Return the verdict line: "PASS" or "FAIL" followed by the blocking issues.
 
 ## Hard rules
