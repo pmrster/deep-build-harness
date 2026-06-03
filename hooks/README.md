@@ -13,7 +13,7 @@ Declared in `hooks/hooks.json`. Claude Code auto-loads this file when the plugin
 
 ## The `.active_role` contract
 
-The coordinator (`harness-work`) signals the current role by writing one line to `state/.active_role`:
+The coordinator (`harness-work`, or the opt-in `harness-work-parallel`) signals the current role by writing one line to `state/.active_role`:
 
 ```
 <role> <run-id>
@@ -38,6 +38,7 @@ So the hook **failing open is acceptable by design.** Do not add brittle logic t
 - **Relative `state/.active_role`** — only resolves when the session CWD is the project root. By design (the harness runs from the project root).
 - **`python3` only in `post-tool-use.sh`** — it uses stdlib `json` to parse the event and build the log line safely. `pre-tool-use.sh` needs no parsing (the `Write|Edit` matcher guarantees the tool) and is pure bash. If `python3` is missing, the post-hook log line is skipped; blocking (the pre-hook) is unaffected.
 - **Bash-redirect writes aren't captured** — the auditor writes `audit_log.json` via a shell redirect, not the Write tool, so it does not appear in `file_change_log.jsonl`. A `PostToolUse` hook on `Write|Edit` cannot see shell redirection. Expected.
+- **`harness-work-parallel` keeps the same contract** — the dynamic Workflow script (`workflows/harness-build-parallel.js`) never writes `.active_role`; the *coordinator* sets it per phase (`worker` around the build fan-out, `auditor` around the audit fan-out, `integration` around integration) and clears it after each, identical to `harness-work`. During the build fan-out several workers run in parallel under one `worker` role, so their `file_change_log.jsonl` appends interleave — same as `harness-work`'s parallel wave dispatch; the per-line JSONL append is atomic for the small records written here. Only one coordinator may run per repo (enforced by the parallel skill's concurrency precondition), so the single global marker is never contended.
 
 ## Checklist for adding or editing a hook
 

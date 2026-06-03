@@ -173,6 +173,16 @@ Each phase writes one file; the next reads it. Agents never share memory — **f
 
 The coordinator is the **sole writer of `plans.json`**. Workers and the auditor write only their own logs and return results. Runs are **resumable** — re-running skips already-verified tasks.
 
+#### Phase 4 — parallel path (opt-in: `/harness-work-parallel`)
+
+`/harness-work-parallel` is an opt-in alternative that drives the **parallel-safe** work through Claude Code's **dynamic Workflow tool** while keeping every shared singleton serial in the coordinator. It produces the same end state as `/harness-work` — same commits on the same branch, same `audit_log.json`, same verified tasks — and reuses the same worker and auditor subagents:
+
+- **Build fan-out:** per wave, workers run in parallel as *write-only* (dispatched with `COMMIT_MODE: defer`); they edit their disjoint `files_expected` and write logs but do **not** commit. The coordinator then commits each task **serially** (one git writer → no index race).
+- **Adversarial audit:** each task gets the canonical auditor (run **one at a time**, since it read-modify-writes the single `audit_log.json`) plus N read-only "refuter" agents that fan out in parallel and try to disprove the task passed — a `PASS` survives only if no refuter majority blocks it.
+- **Singletons stay with the coordinator:** git commits, `plans.json` writes, and `state/.active_role` (set per phase, exactly like `/harness-work`). The Workflow script itself never touches them.
+
+**When to use it:** worth it when a wave has roughly **3+ independent tasks** that each take real work — the build fan-out cuts wall-clock at the cost of higher parallel token use, and dynamic workflows ask you to confirm before running. For plans with 1–2 tasks per wave, or on a tight token budget, plain `/harness-work` is just as fast and cheaper. `/harness-work` remains the default and is unchanged; a user who never runs the parallel command sees identical behavior.
+
 ### Roles and permissions
 
 | Agent | Can write | Purpose |
@@ -213,6 +223,7 @@ The interviewer asks until requirements are unambiguous, **creates a run** `stat
 /harness-architecture    # schema + exact contracts → RUN_DIR/architecture.md   (you approve)
 /harness-plan            # tasks with verifiable criteria → RUN_DIR/plans.json  (you approve → locks)
 /harness-work            # builds each task: worker (TDD) → auditor, with rework loop
+/harness-work-parallel   # opt-in alternative to /harness-work: parallel build + adversarial audit via the dynamic Workflow tool (higher token cost; confirm before use)
 /harness-docs            # README/CHANGELOG/API from the real code
 /harness-release         # final gate + git tag, only if every task is verified
 ```
