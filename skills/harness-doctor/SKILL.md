@@ -17,25 +17,36 @@ claude --version
 ✗ if missing or errors — tell user to install Claude Code CLI.
 
 ### 2. Plugin hooks
-Check `hooks/hooks.json` exists and is valid JSON (locate via `$CLAUDE_PLUGIN_ROOT/hooks/hooks.json` or relative to the current directory). Check `hooks/pre-tool-use.sh`, `hooks/pre-tool-use-bash.sh`, and `hooks/post-tool-use.sh` all exist and are executable.
-✓ if all present and executable.
+Use the Bash tool to find and verify hooks:
+```bash
+HOOKS_JSON=$(find ~/.claude/plugins -name "hooks.json" -path "*/deep-build-harness/*" 2>/dev/null | head -1)
+echo "HOOKS_JSON=$HOOKS_JSON"
+PLUGIN_ROOT=$(dirname "$(dirname "$HOOKS_JSON")")
+echo "PLUGIN_ROOT=$PLUGIN_ROOT"
+python3 -c "import json; json.load(open('$HOOKS_JSON'))" 2>&1 && echo "hooks.json valid"
+for f in pre-tool-use.sh pre-tool-use-bash.sh post-tool-use.sh; do
+  [ -x "$PLUGIN_ROOT/hooks/$f" ] && echo "$f: executable" || echo "$f: MISSING or not executable"
+done
+```
+✓ if hooks.json valid and all three scripts executable.
 ✗ list which are missing or not executable.
+Save the PLUGIN_ROOT value — checks 3 and 4 use it.
 
 ### 3. Resolver
-Run this exact bash command — it finds the resolver wherever the plugin is installed:
+Use PLUGIN_ROOT from check 2. Run:
 ```bash
-RESOLVER=$(find ~/.claude/plugins/cache -name "resolver.py" -path "*/orchestrator/*" 2>/dev/null | head -1); [ -z "$RESOLVER" ] && RESOLVER="orchestrator/resolver.py"; python3 "$RESOLVER" 2>&1 | head -1; echo "RESOLVER_PATH=$RESOLVER"
+python3 "$PLUGIN_ROOT/orchestrator/resolver.py" 2>&1 | head -1
 ```
-✓ if output contains the usage line (exit 4 is expected with no args).
-✗ if "No such file" or import error — report the RESOLVER_PATH value.
+✓ if prints the usage line (exit 4 is expected with no args — that means it ran).
+✗ if "No such file" or import error.
 
 ### 4. Validator
-Run this exact bash command:
+Use PLUGIN_ROOT from check 2. Run:
 ```bash
-VALIDATOR=$(find ~/.claude/plugins/cache -name "validate_plans.py" -path "*/orchestrator/*" 2>/dev/null | head -1); [ -z "$VALIDATOR" ] && VALIDATOR="orchestrator/validate_plans.py"; python3 "$VALIDATOR" 2>&1 | head -1; echo "VALIDATOR_PATH=$VALIDATOR"
+python3 "$PLUGIN_ROOT/orchestrator/validate_plans.py" 2>&1 | head -1
 ```
 ✓ usage line, exit 4 is expected.
-✗ if "No such file" — report the VALIDATOR_PATH value.
+✗ if "No such file" or import error.
 
 ### 5. state/ directory
 Check `state/` exists. If not: create it with `mkdir -p state/`.
