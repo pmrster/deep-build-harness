@@ -2,8 +2,10 @@ state/
 __pycache__/
 *.pyc
 .DS_Store
+.pytest_cache/
 
 CLAUDE.md
 HANDOFF.md
+TODO.md
 
 /docs

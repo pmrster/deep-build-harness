@@ -6,9 +6,9 @@ It uses only native Claude Code primitives — **subagents, skills, hooks, and f
 
 ---
 
-## Why we built it
+## The problem it solves
 
-A single agent told to "build X" tends to: make silent assumptions, design as it types, mark its own work done, and lose the thread as its context fills. The failure usually isn't capability — it's **discipline and verification**. Nothing forced it to pin requirements, nothing designed before coding, and the thing that graded the result was the same thing that wrote it.
+A single agent told to "build X" tends to: make silent assumptions, design as it types, mark its own work done, and lose the thread as context fills. The failure usually isn't capability — it's **discipline and verification**. Nothing forced it to pin requirements, nothing designed before coding, and the thing that graded the result was the same thing that wrote it.
 
 The core idea: **simulate an expert software team as a set of isolated agents that communicate only through files, and put an independent skeptic between "done" and "shipped."**
 
@@ -39,18 +39,62 @@ That's the whole bet: **rigor up front (interview → design → plan), isolatio
 
 ---
 
+## Install
+
+### Option A — clone and symlink (recommended for now)
+
+```bash
+git clone https://github.com/pmrster/deep-build-harness ~/.claude/plugins/deep-build-harness
+```
+
+Claude Code loads plugins from `~/.claude/plugins/` automatically on next session start. Verify:
+
+```
+/plugin list
+/agents
+```
+
+You should see `deep-build-harness` and its three agents (`harness-worker`, `harness-auditor`, `harness-integration`).
+
+To remove:
+
+```bash
+rm -rf ~/.claude/plugins/deep-build-harness
+```
+
+### Option B — local dev / per-project
+
+```bash
+ln -s /path/to/deep-build-harness ~/.claude/skills/deep-build-harness
+```
+
+Validate without loading:
+
+```bash
+claude plugin validate /path/to/deep-build-harness
+```
+
+### Requirements
+
+- **Claude Code** (any plan — Pro, Team, Free, Max, Enterprise)
+- **Python 3** standard library — used by `orchestrator/resolver.py` and `hooks/post-tool-use.sh`; no third-party packages
+- **pytest** — only needed to run the resolver's unit tests (`python3 -m pytest tests/`)
+- Your target project must provide its own test / lint / type-check commands; the interviewer captures them into `context.md` and the worker/auditor run them
+
+---
+
 ## How it works — the 8 phases
 
 Each run is isolated under `state/runs/<run-id>/` (referred to as **RUN_DIR**), so multiple features or sessions in one repo never collide.
 
 ```
-/harness-interview     Phase 0  → RUN_DIR/context.md         interview until unambiguous (creates the run)
-/harness-scan          Phase 1  → RUN_DIR/codebase_map.md    map existing code first
-/harness-architecture  Phase 2  → RUN_DIR/architecture.md    schema + exact API contracts
-/harness-plan          Phase 3  → RUN_DIR/plans.json         tasks with machine-verifiable AC
+/harness-interview     Phase 0  → RUN_DIR/context.md              interview until unambiguous (creates the run)
+/harness-scan          Phase 1  → RUN_DIR/codebase_map.md         map existing code first
+/harness-architecture  Phase 2  → RUN_DIR/architecture.md         schema + exact API contracts
+/harness-plan          Phase 3  → RUN_DIR/plans.json              tasks with machine-verifiable AC
 /harness-work          Phase 4  → coordinator drives build per task (worker → auditor)
-                       Phase 5  → RUN_DIR/integration_log.json  end-to-end across tasks
-                       Phase 6  → RUN_DIR/audit_log.json     independent verdict per task
+                       Phase 5  → RUN_DIR/integration_log.json    end-to-end across tasks
+                       Phase 6  → RUN_DIR/audit_log.json          independent verdict per task
 /harness-docs          Phase 7  → README / CHANGELOG / docs
 /harness-release       Phase 8  → RUN_DIR/release_proof/ + git tag (only if all verified)
 ```
@@ -61,24 +105,24 @@ Each phase writes one file; the next reads it. Agents never share memory — **f
 
 `/harness-work` runs in your session and, per dependency wave:
 
-1. groups tasks into waves with `orchestrator/resolver.py --waves` (deterministic; stops on cycles / unknown deps),
-2. within each wave, dispatches **worker** subagents **in parallel** (one per task; each writes its own `work_logs/<task-id>.json`, so no shared-log contention),
-3. once all wave workers return, dispatches **auditor** subagents **in parallel** (re-runs every acceptance criterion itself, writes `audit_log.json`),
-4. on FAIL runs a **rework loop** (max 3 attempts per task, then asks you: retry / skip / abort),
-5. gates the next wave: if any task in a wave is not verified, dependent waves are blocked,
-6. when all tasks are verified, runs an **integration** subagent end-to-end.
+1. Groups tasks into waves with `orchestrator/resolver.py --waves` (deterministic; stops on cycles / unknown deps)
+2. Within each wave, dispatches **worker** subagents **in parallel** (one per task; each writes its own `work_logs/<task-id>.json`, so no shared-log contention)
+3. Once all wave workers return, dispatches **auditor** subagents **in parallel** (re-runs every acceptance criterion itself, writes `audit_log.json`)
+4. On FAIL runs a **rework loop** (max 3 attempts per task, then asks you: retry / skip / abort)
+5. Gates the next wave: if any task in a wave is not verified, dependent waves are blocked
+6. When all tasks are verified, runs an **integration** subagent end-to-end
 
 The coordinator is the **sole writer of `plans.json`**. Workers and the auditor write only their own logs and return results. Runs are **resumable** — re-running skips already-verified tasks.
 
 ### Roles and permissions
 
-| Agent | Color | Can write | Purpose |
-|---|---|---|---|
-| worker | blue | source, `work_logs/<task-id>.json`, commits | implement one task with TDD |
-| auditor | purple | `audit_log.json` only | independently verify; **no Write/Edit** |
-| integration | cyan | `integration_log.json` only | end-to-end flows; **no Write/Edit** |
+| Agent | Can write | Purpose |
+|---|---|---|
+| worker | source, `work_logs/<task-id>.json`, commits | implement one task with TDD |
+| auditor | `audit_log.json` only | independently verify; **no Write/Edit** |
+| integration | `integration_log.json` only | end-to-end flows; **no Write/Edit** |
 
-Each role has a distinct UI color (above) and `model: inherit` by default, so it works on any plan. The coordinator picks a model per dispatch — least-powerful-that-fits, with the **auditor getting the most capable model available** (it's the quality lever) — and never fails a run if a preferred tier isn't on your plan.
+Each role has `model: inherit` by default, so it works on any plan. The coordinator picks a model per dispatch — least-powerful-that-fits, with the **auditor getting the most capable model available** (it's the quality lever) — and never fails a run if a preferred tier isn't on your plan.
 
 For changes to existing or legacy code, the worker self-checks four **accuracy guardrails** before submitting — it changed only its assigned files, the neighboring code's existing tests still pass, it followed the codebase's conventions, and it didn't break a contract a caller depends on — and the auditor independently re-verifies all four before a task is verified.
 
@@ -94,7 +138,7 @@ Works the same whether you are building something new or changing a big/existing
 
 ```bash
 mkdir my-app && cd my-app && git init
-claude                       # the plugin loads automatically (see Install)
+claude                       # the plugin loads automatically after install
 ```
 
 Drive the pipeline from inside the session. You can pass your idea straight to the interview:
@@ -108,7 +152,7 @@ The interviewer asks until requirements are unambiguous, **creates a run** `stat
 ```
 /harness-scan            # maps existing code (marks greenfield if empty) → RUN_DIR/codebase_map.md
 /harness-architecture    # schema + exact contracts → RUN_DIR/architecture.md   (you approve)
-/harness-plan            # tasks with verifiable criteria → RUN_DIR/plans.json   (you approve → locks)
+/harness-plan            # tasks with verifiable criteria → RUN_DIR/plans.json  (you approve → locks)
 /harness-work            # builds each task: worker (TDD) → auditor, with rework loop
 /harness-docs            # README/CHANGELOG/API from the real code
 /harness-release         # final gate + git tag, only if every task is verified
@@ -119,7 +163,10 @@ Operational commands (any time):
 ```
 /harness-status            # read-only: phase progress + per-task status table for the current run
 /harness-runs [run-id]     # list runs with status; with an id, switch the active run (state/CURRENT)
-/harness-rework <id> [why] # flip a task back to rework so /harness-work rebuilds it (between runs)
+/harness-rework <id> [why] # flip a task back to rework so /harness-work rebuilds it
+/harness-audit <task-id>   # manually re-audit one task with the independent auditor
+/harness-integration       # manually trigger integration tests after all tasks are verified
+/harness-doctor            # environment check: Python, hooks, resolver, stale state
 ```
 
 All phases in the same session reuse that run automatically; a fresh session falls back to `state/CURRENT`. Run a second, unrelated feature in the same repo by starting another `/harness-interview` — it gets its own isolated run dir. Inspect progress anytime: `cat state/runs/<run-id>/plans.json`, `cat state/runs/<run-id>/audit_log.json`, `git log`.
@@ -136,7 +183,7 @@ For a small bounded change — a bug fix, a tweak, a one-function addition — t
 
 `/harness-quick` asks a couple of plain-language questions, confirms the change once, then runs the **same worker and independent auditor with the full accuracy guardrails** — it just skips the architecture document, multi-wave planning, and the long interview. If the change turns out to be large (new schema, new API, many files), it stops and tells you to run `/harness-interview` for the full pipeline instead. Quick runs are normal runs: they show up in `/harness-status` and `/harness-runs`.
 
-### Works with which Claude Code mode?
+### Which Claude Code permission mode to use
 
 The harness writes files every phase (state, then real code), so the permission mode matters:
 
@@ -148,7 +195,7 @@ The harness writes files every phase (state, then real code), so the permission 
 
 In short: run the interactive phases in any mode you like; run `/harness-work` in **normal/accept-edits**.
 
-### Permissions — avoid mid-run stalls
+### Avoid mid-run stalls
 
 The harness fires many tool calls (scan, tests, lint, git, the resolver). If one needs a permission you haven't granted — especially inside a subagent — the run can **hang waiting on a prompt that never gets answered**. Two ways to prevent it:
 
@@ -171,19 +218,7 @@ The harness fires many tool calls (scan, tests, lint, git, the resolver). If one
 
 Trim it to your stack. Or generate one automatically from your own usage with the `/fewer-permission-prompts` helper.
 
-If a run does stall on a prompt: press `Esc` to cancel, grant the permission (or add it above), and re-run the phase — every phase is resumable (it re-reads the run's state and skips finished work).
-
-### Install
-
-Add the plugin to Claude Code from a marketplace, or for local/dev use symlink it into your user skills dir and restart `claude`:
-
-```bash
-ln -s /path/to/deep-build-harness ~/.claude/skills/deep-build-harness
-# Loads next session as deep-build-harness@skills-dir.
-# Verify with /plugin and /agents. Remove with: rm ~/.claude/skills/deep-build-harness
-```
-
-Validate the plugin without loading it: `claude plugin validate /path/to/deep-build-harness`.
+If a run stalls on a prompt: press `Esc` to cancel, grant the permission (or add it above), and re-run the phase — every phase is resumable (it re-reads the run's state and skips finished work).
 
 ---
 
@@ -196,17 +231,37 @@ All per-run files live under `state/runs/<run-id>/`. A top-level `state/CURRENT`
 | `context.md` | interviewer | locked after your approval |
 | `codebase_map.md` | scanner | |
 | `architecture.md` | architect | locked after your approval |
-| `plans.json` | coordinator | run-state; `locked: true` after you approve the plan |
-| `work_logs/<task-id>.json` | workers (one file per task) | written once per task; parallel-safe |
+| `plans.json` | coordinator | `locked: true` after you approve the plan |
+| `work_logs/<task-id>.json` | workers (one file per task) | parallel-safe |
 | `audit_log.json` | auditor | append-only, immutable entries |
 | `integration_log.json` | integration | per run |
 | `file_change_log.jsonl` | post-tool hook | append-only |
 
 `state/` is created at runtime and gitignored. Each run is isolated, so concurrent runs in one repo never clobber each other.
 
+---
+
 ## The quality lever
 
 `calibration/audit-fail-examples.md` trains the auditor to treat specific patterns as hard failures (wrong response schema, coverage one point short, missing error handling, hardcoded secrets, tests-after-code, path mismatches, self-reported evidence). Out of the box, models grade LLM output leniently; **adding examples here is the primary way to raise output quality over time.**
+
+Similarly, `calibration/interview-deep-examples.md` trains the interviewer to push back on vague answers ("production quality", "standard REST", "fast"). Add a pattern whenever you see the interview accept something it shouldn't.
+
+---
+
+## What uses Python (and why)
+
+The harness is almost entirely prompt-driven (skills + agents). Python appears in exactly three places, all **stdlib-only** — no packages to install beyond Python 3 itself:
+
+| Where | What | Why Python, not a prompt |
+|---|---|---|
+| `orchestrator/resolver.py` | Deterministic dependency ordering of plan tasks (topological sort) + cycle / unknown-dep / duplicate-id detection | Ordering is the one place a silent LLM mistake — running a task before its dependency — corrupts a whole run. Code makes it deterministic and unit-testable. |
+| `hooks/post-tool-use.sh` | A one-line `python3 -c` parses the hook event JSON and builds the change-log entry | Parsing JSON with embedded paths in pure bash is fragile; `python3` stdlib `json` handles quotes and backslashes correctly. |
+| `tests/test_resolver.py` | pytest unit tests for the resolver | The resolver is the only component with real logic, so it's the only thing worth a test suite. |
+
+Everything else — the 8 phases, the coordinator loop, the role agents — is plain prompting over file-based state.
+
+---
 
 ## When to use it
 
@@ -216,40 +271,42 @@ All per-run files live under `state/runs/<run-id>/`. A top-level `state/CURRENT`
 
 ## When not to
 
-- One-line fixes, throwaway scripts, exploration. The ceremony costs more than it saves — use a plain agent.
+- One-line fixes, throwaway scripts, exploration. The ceremony costs more than it saves — use `/harness-quick` or a plain agent.
 
-## What uses Python (and why)
+---
 
-The harness is almost entirely prompt-driven (skills + agents). Python appears in exactly three places, all **stdlib-only** — no packages to install beyond Python 3 itself:
+## Extending and customizing
 
-| Where | What | Why Python, not a prompt |
-|---|---|---|
-| `orchestrator/resolver.py` | Deterministic dependency ordering of plan tasks (topological sort) + cycle / unknown-dep / duplicate-id detection. | Ordering is the one place a silent LLM mistake — running a task before its dependency exists — corrupts a whole run. Code makes it deterministic and unit-testable; the model can't "mis-order" it. The coordinator calls it via `$CLAUDE_PLUGIN_ROOT`, with an in-prompt fallback if it can't be located. |
-| `hooks/post-tool-use.sh` | A one-line `python3 -c` parses the hook event JSON and builds the change-log line. | Parsing/serializing JSON in pure bash is fragile; a file path containing a quote or backslash would corrupt the log. `python3`'s stdlib `json` does it safely. (`pre-tool-use.sh` is pure bash — its `Write|Edit` matcher makes parsing unnecessary.) |
-| `tests/test_resolver.py` | pytest unit tests for the resolver. | The resolver is the only component with real logic, so it's the only thing worth a test suite. |
+### Calibration (recommended)
 
-Everything else — the 8 phases, the coordinator loop, the role agents — is plain prompting over file-based state. So `python3` is a runtime requirement (for the resolver and the hooks), but the harness ships **no third-party Python dependencies**.
+Add examples to `calibration/audit-fail-examples.md` and `calibration/interview-deep-examples.md` whenever you find a new failure mode. This is the lowest-effort, highest-leverage way to improve quality over time.
 
-## Requirements
+### Adding a role or phase
 
-- Claude Code (any plan).
-- Python 3 with the standard library (used by `orchestrator/resolver.py` and the hooks; no third-party packages). pytest only for running the resolver tests.
-- Your target project must provide its own test / lint / type-check commands; the interviewer captures them into `context.md` and the worker/auditor run them.
+- Skills live in `skills/<name>/SKILL.md` with YAML frontmatter.
+- Commands live in `commands/<name>.md` with YAML frontmatter.
+- Agents live in `agents/<name>.md` — the `tools:` and `disallowedTools:` frontmatter sets that role's permissions.
+- Keep the invariants: agents write only their own files, the auditor never writes source, every acceptance criterion stays a runnable command, permissions are declared once and backstopped by hooks.
+
+---
 
 ## Development
 
 ```bash
-python3 -m pytest tests/        # resolver unit tests
+python3 -m pytest tests/        # 108 tests across resolver, hooks, bash guard, active-role, validation, smoke
+claude plugin validate .        # validate plugin structure
 ```
 
-## Non-negotiables (if you extend this)
+---
 
-- An agent writes only its own file(s); never hand state agent-to-agent in memory.
-- The auditor never writes source and never accepts self-reported evidence.
-- Every acceptance criterion stays a runnable command.
-- Tool permissions remain declared once and enforced by hooks too.
-- Calibration examples are how you raise quality over time — add to them when you find a new failure mode.
+## Contributing
 
-## Status
+Bug reports and calibration examples are the most useful contributions right now. Open an issue with the failure mode and (if possible) a minimal reproducer. PRs that add calibration examples, fix hook edge cases, or improve the resolver are welcome; PRs that add new phases or change the state contract need a discussion first.
 
-All 8 phases implemented. Execution is sequential (parallel-within-wave is a planned enhancement). The resolver and hooks are unit-tested and the plugin loads/validates cleanly; a full live end-to-end run on a real project is the next validation step.
+Please don't submit PRs that remove the auditor's independence, relax the "runnable AC only" rule, or allow agents to share context. Those are load-bearing invariants, not style preferences.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

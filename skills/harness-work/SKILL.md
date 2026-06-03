@@ -1,6 +1,6 @@
 ---
 name: harness-work
-description: "Phase 4 coordinator of the deep-build harness. Use after the run's plans.json is locked to drive implementation — resolve task order, dispatch a worker then an auditor per task sequentially, run a rework loop, then integration. Sole writer of plans.json. Triggers on /harness-work."
+description: "Phase 4 coordinator of the deep-build harness. Use after the run's plans.json is locked to drive implementation — resolve task order into waves, dispatch workers in parallel per wave then auditors in parallel, run a rework loop, then integration. Sole writer of plans.json. Triggers on /harness-work."
 ---
 
 # Phase 4 — Coordinator
