@@ -73,14 +73,32 @@ BLOCK_HEREDOC = [
     "rm -rf src/ > state/runs/r/audit_log.json",
 ]
 
+# Read-only roles parse JSON via interpreter one-liners. The embedded quotes/;/|
+# are foreign syntax and must NOT be parsed as shell (they were false-blocked as
+# "unbalanced quotes" before the interpreter-code stripping).
+ALLOW_INTERP = [
+    'cat plans.json | python3 -c "import json,sys; print(json.load(sys.stdin)[\'tasks\'])"',
+    'python3 -c "a = 1; b = 2; print(a)"',
+    'echo "=== check ==="; git diff --stat; python3 -c "import json; print(json.load(open(\'f.json\')))"',
+    "node -e \"JSON.parse(require('fs').readFileSync('package.json','utf8'))\"",
+    "python3 -c 'd = {\"a\": 1}; print(d[\"a\"])'",
+]
 
-@pytest.mark.parametrize("cmd", ALLOW + ALLOW_HEREDOC)
+# A real write that follows the interpreter code (or is the interpreter's own
+# redirect) must still be caught — stripping the code must not hide the redirect.
+BLOCK_INTERP = [
+    "python3 -c \"open('x','w').write('hi')\" > src/main.py",
+    "node -e \"console.log(1)\" && rm -rf src",
+]
+
+
+@pytest.mark.parametrize("cmd", ALLOW + ALLOW_HEREDOC + ALLOW_INTERP)
 def test_allowed_commands_pass(cmd):
     blocked, reason = is_write_command(cmd)
     assert not blocked, f"should allow: {cmd!r} (got: {reason})"
 
 
-@pytest.mark.parametrize("cmd", BLOCK + BLOCK_HEREDOC)
+@pytest.mark.parametrize("cmd", BLOCK + BLOCK_HEREDOC + BLOCK_INTERP)
 def test_write_commands_blocked(cmd):
     blocked, reason = is_write_command(cmd)
     assert blocked, f"should block: {cmd!r}"
