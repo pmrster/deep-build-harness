@@ -41,38 +41,51 @@ That's the whole bet: **rigor up front (interview → design → plan), isolatio
 
 ## Install
 
-### Option A — clone and symlink (recommended for now)
+### Option A — via Claude Code plugin manager (recommended)
 
 ```bash
-git clone https://github.com/pmrster/deep-build-harness ~/.claude/plugins/deep-build-harness
+claude marketplace add github:pmrster/deep-build-harness
+claude plugin install deep-build-harness@deep-build-harness
 ```
 
-Claude Code loads plugins from `~/.claude/plugins/` automatically on next session start. Verify:
+Claude Code clones the plugin, registers the hooks automatically, and sets `$CLAUDE_PLUGIN_ROOT` so hooks resolve correctly regardless of where the plugin is cached. Takes effect on next session start.
+
+Verify it loaded:
 
 ```
-/plugin list
-/agents
+/harness-doctor
 ```
 
-You should see `deep-build-harness` and its three agents (`harness-worker`, `harness-auditor`, `harness-integration`).
+You should see all checks pass: Claude CLI, hooks (present + executable), resolver, validator.
+
+To update:
+
+```bash
+claude plugin update deep-build-harness@deep-build-harness
+```
 
 To remove:
 
 ```bash
-rm -rf ~/.claude/plugins/deep-build-harness
+claude plugin remove deep-build-harness@deep-build-harness
 ```
 
 ### Option B — local dev / per-project
 
+Clone the repo anywhere, then symlink into Claude Code's plugin path:
+
 ```bash
-ln -s /path/to/deep-build-harness ~/.claude/skills/deep-build-harness
+git clone https://github.com/pmrster/deep-build-harness /path/to/deep-build-harness
+ln -s /path/to/deep-build-harness ~/.claude/plugins/deep-build-harness
 ```
 
-Validate without loading:
+Validate the plugin structure:
 
 ```bash
 claude plugin validate /path/to/deep-build-harness
 ```
+
+With this approach, hooks use `${CLAUDE_PLUGIN_ROOT}` which Claude Code sets to the symlink target. Run `/harness-doctor` to confirm.
 
 ### Requirements
 

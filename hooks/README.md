@@ -9,7 +9,7 @@ Two small hooks enforce and record the harness's read-only roles. They are a **b
 | `pre-tool-use.sh` | `PreToolUse` | Block `Write`/`Edit` while a read-only role (auditor/integration) is active. Exit `2` blocks the tool call. |
 | `post-tool-use.sh` | `PostToolUse` | Append every `Write`/`Edit` to the active run's `file_change_log.jsonl` for the auditor to review. |
 
-Wired in `hooks.json`, registered from the plugin manifest. Paths use `"${CLAUDE_PLUGIN_ROOT}"` (quoted, to survive spaces).
+Declared in `hooks/hooks.json`. Claude Code auto-loads this file when the plugin is installed and sets `$CLAUDE_PLUGIN_ROOT` to the plugin's install path — no manual `settings.json` editing required. Paths use `"${CLAUDE_PLUGIN_ROOT}"` (quoted, to survive spaces in the path).
 
 ## The `.active_role` contract
 
