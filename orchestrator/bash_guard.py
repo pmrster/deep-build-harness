@@ -41,6 +41,30 @@ _SEGMENT_SPLIT = re.compile(r"&&|\|\||\||;|\n")
 # A redirection that writes to a file: > or >> with a target that is not a
 # /dev/null and not an fd duplication (2>&1, >&2, &>).
 _REDIR = re.compile(r"(?<![0-9&])>>?(?![&])\s*([^\s;|&<>]+)")
+# A heredoc opener: <<DELIM, <<-DELIM, <<'DELIM', <<"DELIM".
+_HEREDOC = re.compile(r"<<-?\s*([\"']?)([A-Za-z_][A-Za-z0-9_]*)\1")
+
+
+def _strip_heredoc_bodies(command):
+    """Remove heredoc *bodies* (and the closing delimiter) so JSON/quotes inside
+    a `cat > log <<'EOF' ... EOF` are never parsed as shell. The opener line is
+    kept — that is what carries the redirect we still need to inspect. Without
+    this, an apostrophe or unbalanced quote in a log payload trips shlex and the
+    command is wrongly blocked, even though it only writes to an allowed target."""
+    lines = command.split("\n")
+    out = []
+    i = 0
+    while i < len(lines):
+        out.append(lines[i])
+        m = _HEREDOC.search(lines[i])
+        if m:
+            delim = m.group(2)
+            i += 1
+            while i < len(lines) and lines[i].strip() != delim:
+                i += 1  # skip body
+            # skip the closing delimiter line itself (if present)
+        i += 1
+    return "\n".join(out)
 
 # The only files these read-only roles legitimately own and append to (they have
 # no Write/Edit tool, so they must use Bash for their own log). Allow writes here.
@@ -94,6 +118,7 @@ def is_write_command(command):
     """Return (blocked: bool, reason: str). True if the command writes."""
     if not command or not command.strip():
         return False, ""
+    command = _strip_heredoc_bodies(command)
     for seg in _SEGMENT_SPLIT.split(command):
         reason = _segment_writes(seg)
         if reason:

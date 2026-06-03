@@ -53,13 +53,34 @@ BLOCK = [
 ]
 
 
-@pytest.mark.parametrize("cmd", ALLOW)
+# Heredoc writes to an allowed log file. The body can hold arbitrary JSON —
+# apostrophes, nested quotes, pipes, semicolons — which must NOT trip the guard,
+# because the auditor/integration roles write their logs this way.
+ALLOW_HEREDOC = [
+    "cat > state/runs/r/audit_log.json <<'JSONEOF'\n"
+    '{"entries":[{"task_id":"1.1","rework_ticket":"don\'t hardcode; it\'s wrong","verdict":"FAIL"}]}\n'
+    "JSONEOF",
+    "cat > state/runs/r/integration_log.json <<'JSONEOF'\n"
+    '{"steps":[{"actual":"a|b; c","result":"pass"}]}\n'
+    "JSONEOF",
+    "cat > RUN_DIR/audit_log.json <<EOF\n{}\nEOF",
+]
+
+# Heredoc whose redirect target is a SOURCE file — body stripping must not let
+# this slip through; the opener's redirect is still inspected and blocked.
+BLOCK_HEREDOC = [
+    "cat > src/main.py <<'EOF'\nprint('pwned')\nEOF",
+    "rm -rf src/ > state/runs/r/audit_log.json",
+]
+
+
+@pytest.mark.parametrize("cmd", ALLOW + ALLOW_HEREDOC)
 def test_allowed_commands_pass(cmd):
     blocked, reason = is_write_command(cmd)
     assert not blocked, f"should allow: {cmd!r} (got: {reason})"
 
 
-@pytest.mark.parametrize("cmd", BLOCK)
+@pytest.mark.parametrize("cmd", BLOCK + BLOCK_HEREDOC)
 def test_write_commands_blocked(cmd):
     blocked, reason = is_write_command(cmd)
     assert blocked, f"should block: {cmd!r}"
