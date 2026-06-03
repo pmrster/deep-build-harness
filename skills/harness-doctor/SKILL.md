@@ -22,18 +22,20 @@ Check `hooks/hooks.json` exists and is valid JSON (locate via `$CLAUDE_PLUGIN_RO
 ✗ list which are missing or not executable.
 
 ### 3. Resolver
+Locate the resolver: if `$CLAUDE_PLUGIN_ROOT` is set use `$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py`; else fall back to `orchestrator/resolver.py` (local dev). Then:
 ```bash
-python3 orchestrator/resolver.py 2>&1 | head -1
+python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/resolver.py" 2>&1 | head -1
 ```
 ✓ if prints the usage line (exit 4 is expected with no args — that means it ran).
-✗ if import error or file not found — tell user the orchestrator/ directory may be missing.
+✗ if file not found or import error — report the resolved path that was tried.
 
 ### 4. Validator
+Locate same way: `$CLAUDE_PLUGIN_ROOT/orchestrator/validate_plans.py` or fallback `orchestrator/validate_plans.py`. Then:
 ```bash
-python3 orchestrator/validate_plans.py 2>&1 | head -1
+python3 "$CLAUDE_PLUGIN_ROOT/orchestrator/validate_plans.py" 2>&1 | head -1
 ```
 ✓ same — usage line, exit 4 is expected.
-✗ if import error or file not found.
+✗ if file not found or import error — report the resolved path that was tried.
 
 ### 5. state/ directory
 Check `state/` exists. If not: create it with `mkdir -p state/`.
@@ -42,7 +44,7 @@ Check `state/` exists. If not: create it with `mkdir -p state/`.
 ### 6. Stale active_role
 Check `state/.active_role`:
 - Not present → ✓ "No stale role."
-- Present → read it with `python3 orchestrator/active_role.py state/.active_role` (or read directly: `<role> <run> <timestamp>`).
+- Present → read it with `python3 "${CLAUDE_PLUGIN_ROOT}/orchestrator/active_role.py" state/.active_role` (locate via `$CLAUDE_PLUGIN_ROOT` same as checks 3–4; or read the file directly: `<role> <run> <timestamp>`).
   - If age < 5 minutes AND a `/harness-work` run seems actively in progress → ✓ "Active role in use (recent)."
   - Otherwise → ✗ "Stale active role detected: `<content>` (age: <X>m). This blocks all Write/Edit operations."
     Use AskUserQuestion: "Clear the stale active role?" (Yes / No).
