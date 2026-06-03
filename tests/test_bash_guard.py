@@ -50,6 +50,9 @@ BLOCK = [
     "mkdir newdir",
     "touch newfile",
     "pytest -q && echo ok > result.txt",
+    # a real write AFTER a quoted-separator string must still be caught
+    'echo "safe; text" ; rm src/foo.py',
+    'echo "a | b"; git commit -m "msg; semi"',
 ]
 
 
@@ -82,6 +85,13 @@ ALLOW_INTERP = [
     'echo "=== check ==="; git diff --stat; python3 -c "import json; print(json.load(open(\'f.json\')))"',
     "node -e \"JSON.parse(require('fs').readFileSync('package.json','utf8'))\"",
     "python3 -c 'd = {\"a\": 1}; print(d[\"a\"])'",
+    # A ; or | INSIDE a quoted string is not a command separator — splitting on
+    # it would leave an unbalanced-quote fragment and false-block a pure read.
+    # (Regression: auditor's `cat <<EOF ... EOF\necho \"written; exit=$?\"; cat log` was blocked.)
+    'echo "written; exit=$?"; cat state/runs/r/audit_log.json | head -c 200',
+    'echo "a; b | c && d"; grep -q foo bar.ts',
+    "cat > state/runs/r/audit_log.json <<'JSONEOF'\n{\"ok\":true}\nJSONEOF\n"
+    'echo "written; exit=$?"; cat state/runs/r/audit_log.json | head -c 200',
 ]
 
 # A real write that follows the interpreter code (or is the interpreter's own

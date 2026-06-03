@@ -37,7 +37,38 @@ GIT_WRITE_SUBCMDS = {
 # `<cmd> -i` (in-place) editors.
 INPLACE_CMDS = {"sed", "perl", "gawk", "awk"}
 
-_SEGMENT_SPLIT = re.compile(r"&&|\|\||\||;|\n")
+def _split_segments(command):
+    """Split a command into pipeline/list segments on ; | && || and newlines,
+    but ONLY when the separator is outside quotes. A naive regex split cuts a
+    quoted string like `echo "written; exit=$?"` at the `;`, leaving the fragment
+    `echo "written` with an unbalanced quote — shlex then raises and a pure read
+    is wrongly blocked. Walking with quote state keeps quoted separators intact.
+    Single quotes are literal in bash; double quotes honor backslash escapes."""
+    segs = []
+    buf = []
+    i, n = 0, len(command)
+    quote = None  # None, "'" or '"'
+    while i < n:
+        ch = command[i]
+        if quote:
+            buf.append(ch)
+            if quote == '"' and ch == "\\" and i + 1 < n:
+                buf.append(command[i + 1]); i += 2; continue
+            if ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in "'\"":
+            quote = ch; buf.append(ch); i += 1; continue
+        # separators (outside quotes): && || | ; newline
+        two = command[i:i + 2]
+        if two in ("&&", "||"):
+            segs.append("".join(buf)); buf = []; i += 2; continue
+        if ch in "|;\n":
+            segs.append("".join(buf)); buf = []; i += 1; continue
+        buf.append(ch); i += 1
+    segs.append("".join(buf))
+    return segs
 # A redirection that writes to a file: > or >> with a target that is not a
 # /dev/null and not an fd duplication (2>&1, >&2, &>).
 _REDIR = re.compile(r"(?<![0-9&])>>?(?![&])\s*([^\s;|&<>]+)")
@@ -157,7 +188,7 @@ def is_write_command(command):
         return False, ""
     command = _strip_heredoc_bodies(command)
     command = _strip_interpreter_code(command)
-    for seg in _SEGMENT_SPLIT.split(command):
+    for seg in _split_segments(command):
         reason = _segment_writes(seg)
         if reason:
             return True, reason
